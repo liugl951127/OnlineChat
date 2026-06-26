@@ -1,0 +1,39 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: cs-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+    gateway:
+      routes:
+        - id: cs-auth
+          uri: lb://cs-auth
+          predicates:
+            - Path=/auth/**
+        - id: cs-robot
+          uri: lb://cs-robot
+          predicates:
+            - Path=/robot/**
+        - id: cs-im
+          uri: lb://cs-im
+          predicates:
+            - Path=/im/**,/ws/**
+        - id: cs-trade
+          uri: lb://cs-trade
+          predicates:
+            - Path=/trade/**
+
+cs:
+  jwt:
+    secret: default-jwt-secret-change-me-in-production-32-chars-min
+    ttl-ms: 86400000
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

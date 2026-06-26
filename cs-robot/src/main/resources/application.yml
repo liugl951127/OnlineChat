@@ -1,0 +1,18 @@
+server:
+  port: 9002
+
+spring:
+  application:
+    name: cs-robot
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
+cs:
+  llm:
+    api-key: ""           # 配置后启用 LLM 兜底
+
+logging:
+  level:
+    com.example.robot: INFO

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>坐席工作台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; margin: 0; }
+    .layout { display: flex; height: 100vh; }
+    .sidebar { width: 280px; background: #001529; color: #fff; padding: 16px; overflow-y: auto; }
+    .sidebar h2 { margin: 0 0 12px; font-size: 16px; }
+    .queue-item { background: #1f3247; padding: 12px; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+    .queue-item .name { font-weight: 600; margin-bottom: 4px; }
+    .queue-item .meta { font-size: 12px; color: #8c9aa8; }
+    .queue-item .btn { margin-top: 8px; padding: 6px 12px; background: #1677ff; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
+    .main { flex: 1; display: flex; flex-direction: column; }
+    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+    .topbar .who { font-weight: 600; }
+    .topbar .badge { background: #52c41a; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-left: 8px; }
+    .topbar button { padding: 7px 14px; background: #1677ff; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 6px; }
+    .topbar button.danger { background: #ff4d4f; }
+    .chat-area { flex: 1; overflow-y: auto; padding: 20px; background: #f0f2f5; }
+    .msg { display: flex; margin-bottom: 12px; }
+    .msg .bubble { padding: 8px 12px; border-radius: 10px; max-width: 70%; font-size: 14px; line-height: 1.5; }
+    .msg .meta { font-size: 11px; color: #999; margin-top: 4px; }
+    .msg.me { justify-content: flex-end; }
+    .msg.me .bubble { background: #1677ff; color: #fff; }
+    .msg.other .bubble { background: #fff; border: 1px solid #e6ebf2; }
+    .msg.robot .bubble { background: #f9f0ff; border: 1px solid #d3adf7; }
+    .msg.system { justify-content: center; }
+    .msg.system .bubble { background: transparent; color: #8c8c8c; font-size: 12px; border: none; }
+    .rich-card { background: #fff; border: 1px solid #e6ebf2; border-radius: 10px; padding: 12px; max-width: 70%; }
+    .rich-card .title { font-weight: 600; margin-bottom: 6px; }
+    .rich-card .desc { font-size: 13px; color: #555; }
+    .composer { background: #fff; padding: 14px 20px; border-top: 1px solid #e8e8e8; display: flex; gap: 10px; }
+    .composer input { flex: 1; padding: 11px 14px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; }
+    .composer button { padding: 0 22px; background: #1677ff; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .no-session { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
+    .login-box { max-width: 380px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    .login-box h2 { margin: 0 0 20px; text-align: center; }
+    .login-box input { width: 100%; padding: 11px; margin-bottom: 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; }
+    .login-box button { width: 100%; padding: 12px; background: #1677ff; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div v-if="!loggedIn" class="login-box">
+    <h2>🧑‍💼 坐席登录</h2>
+    <input v-model="code" placeholder="企微 userid（Mock 模式填任意值）">
+    <button @click="login">企业微信扫码登录</button>
+    <p style="font-size:12px;color:#888;text-align:center;margin-top:14px;">Mock 模式自动生成 userid。生产请用 <code>/auth/wechat-work/authorize</code> 跳转企微授权页。</p>
+  </div>
+
+  <div v-else class="layout">
+    <aside class="sidebar">
+      <h2>📋 排队客户</h2>
+      <div v-if="queue.length===0" style="color:#8c9aa8;text-align:center;padding:40px 0;font-size:13px;">暂无排队</div>
+      <div v-for="s in queue" :key="s.id" class="queue-item">
+        <div class="name">{{ s.customerId }}</div>
+        <div class="meta">⏱️ {{ s.queuedAt }}</div>
+        <button class="btn" @click="accept(s.id)">接听</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div><span class="who">{{ agentUsername }}</span><span class="badge">在线</span></div>
+        <div>
+          <button v-if="currentSession" class="danger" @click="agentHangup">挂断</button>
+        </div>
+      </div>
+
+      <div v-if="!currentSession" class="no-session">👈 从左侧选择排队客户接听</div>
+
+      <div v-else class="chat-area" ref="msgList">
+        <div v-for="m in messages" :key="m.id || m.ts" class="msg"
+             :class="{ me: m.fromRole==='AGENT', other: m.fromRole==='CUSTOMER', robot: m.fromRole==='ROBOT', system: m.fromRole==='SYSTEM' }">
+          <div>
+            <div v-if="m.type==='RICH'" class="rich-card" :class="m.payload?.type?.toLowerCase()">
+              <div class="title">{{ m.payload?.text }}</div>
+              <div v-if="m.payload?.type==='PRODUCT'" class="desc">年化 {{ m.payload.payload?.rate }}% ｜ {{ m.payload.payload?.period }}</div>
+            </div>
+            <div v-else class="bubble">{{ m.content }}</div>
+            <div class="meta">{{ m.fromUser }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="currentSession && currentSession.status==='IN_SESSION'" class="composer">
+        <input v-model="text" placeholder="回复客户..." @keyup.enter="sendText">
+        <button @click="sendText" :disabled="!text.trim()">发送</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+createApp({
+  setup() {
+    const loggedIn = ref(false);
+    const code = ref('');
+    const token = ref('');
+    const agentUsername = ref('');
+    const queue = ref([]);
+    const currentSession = ref(null);
+    const messages = ref([]);
+    const text = ref('');
+    const msgList = ref(null);
+    let stompClient = null;
+    let pollTimer = null;
+
+    function authHeader() { return { 'Authorization': 'Bearer ' + token.value, 'Content-Type': 'application/json' }; }
+
+    async function login() {
+      // 直接用 /auth/silent-login 给 mock userid 走代理 → 实际上这是企业微信 OAuth 简化
+      // 真实流程：跳转 /auth/wechat-work/authorize?redirect_uri=...&state=...
+      const r = await fetch(`/auth/wechat-work/callback?code=${encodeURIComponent(code.value || 'demo')}`);
+      // callback 是 redirect，简化处理：再调一次 silent 拿到 token
+      // 这里走另一条简化路径：直接用 customer 流程当 agent 演示
+      const loginR = await fetch('/auth/silent-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempCode: 'agent-' + (code.value || 'demo') })
+      });
+      const d = await loginR.json();
+      token.value = d.data.token;
+      agentUsername.value = d.data.customerId;
+      loggedIn.value = true;
+      connectWs();
+      startPoll();
+    }
+
+    async function refreshQueue() {
+      const r = await fetch('/im/agent/queue', { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) queue.value = d.data;
+    }
+    function startPoll() {
+      refreshQueue();
+      pollTimer = setInterval(refreshQueue, 2000);
+    }
+
+    async function accept(sid) {
+      const r = await fetch('/im/agent/accept', {
+        method: 'POST',
+        headers: authHeader(),
+        body: JSON.stringify({ sessionId: sid })
+      });
+      const d = await r.json();
+      if (d.code) return alert('接听失败: ' + d.msg);
+      currentSession.value = d.data;
+      await loadHistory();
+    }
+
+    async function loadHistory() {
+      if (!currentSession.value) return;
+      const r = await fetch(`/im/customer/messages?sessionId=${currentSession.value.id}`, { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) messages.value = d.data;
+      scrollBottom();
+    }
+
+    async function agentHangup() {
+      if (!confirm('确认挂断？')) return;
+      await fetch('/im/agent/hangup', {
+        method: 'POST',
+        headers: authHeader(),
+        body: JSON.stringify({ sessionId: currentSession.value.id })
+      });
+      currentSession.value = null;
+      messages.value = [];
+      refreshQueue();
+    }
+
+    function sendText() {
+      if (!text.value.trim() || !currentSession.value) return;
+      const content = text.value.trim();
+      text.value = '';
+      stompClient.send('/app/agent/chat', {}, JSON.stringify({ sessionId: currentSession.value.id, content, type: 'TEXT' }));
+    }
+
+    function scrollBottom() {
+      nextTick(() => { if (msgList.value) msgList.value.scrollTop = msgList.value.scrollHeight; });
+    }
+
+    function connectWs() {
+      const sock = new SockJS(`/ws?agentUsername=${agentUsername.value}`);
+      const client = Stomp.over(sock);
+      client.debug = null;
+      client.connect({}, () => {
+        client.subscribe('/topic/agents', () => refreshQueue());
+        client.subscribe('/topic/agent/' + agentUsername.value, (msg) => {
+          const env = JSON.parse(msg.body);
+          if (env.type === 'ACCEPTED' || env.type === 'TRANSFERED') {
+            currentSession.value = env.payload;
+            loadHistory();
+          }
+          if (env.type === 'ENDED') {
+            currentSession.value = null; messages.value = [];
+          }
+          if (env.type === 'CHAT_TEXT' || env.type === 'SYSTEM') {
+            messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'TEXT' });
+            scrollBottom();
+          }
+          if (env.type === 'RICH') {
+            messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: env.payload });
+            scrollBottom();
+          }
+        });
+      });
+      stompClient = client;
+    }
+
+    onMounted(() => {
+      const params = new URLSearchParams(location.search);
+      const t = params.get('token');
+      if (t) {
+        token.value = t;
+        agentUsername.value = 'agent-mock';
+        loggedIn.value = true;
+        connectWs();
+        startPoll();
+      }
+    });
+
+    return { loggedIn, code, agentUsername, queue, currentSession, messages, text, msgList, login, accept, agentHangup, sendText };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>后管系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; margin: 0; }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: #001529; color: #fff; padding: 20px 0; }
+    .sidebar h1 { color: #fff; text-align: center; margin: 0 0 30px; font-size: 18px; }
+    .sidebar .menu-item { padding: 12px 24px; cursor: pointer; }
+    .sidebar .menu-item:hover { background: #1677ff; }
+    .sidebar .menu-item.active { background: #1677ff; }
+    .main { flex: 1; padding: 24px; overflow-x: auto; }
+    .card { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 16px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; padding: 20px; border-radius: 8px; text-align: center; }
+    .stat-card .num { font-size: 32px; color: #1677ff; font-weight: 700; }
+    .stat-card .label { color: #888; font-size: 13px; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    table th, table td { padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: left; font-size: 13px; }
+    table th { background: #fafafa; }
+    button { padding: 6px 14px; background: #1677ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    button.danger { background: #ff4d4f; }
+    .login-box { max-width: 360px; margin: 100px auto; background: #fff; padding: 30px; border-radius: 12px; }
+    .login-box input { width: 100%; padding: 11px; margin-bottom: 12px; border: 1px solid #d9d9d9; border-radius: 8px; }
+    .login-box button { width: 100%; padding: 12px; background: #1677ff; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; }
+    .modal { background: #fff; border-radius: 12px; padding: 22px; width: 360px; }
+    .modal input, .modal textarea { width: 100%; padding: 9px; margin-bottom: 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; }
+    .modal .row { display: flex; gap: 8px; }
+    .modal button { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; }
+    .modal button.primary { background: #1677ff; color: #fff; }
+    .modal button.cancel { background: #fff; color: #555; border: 1px solid #d9d9d9; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div v-if="!token" class="login-box">
+    <h2>🛡️ 后管登录</h2>
+    <input v-model="username" placeholder="账号">
+    <input v-model="password" type="password" placeholder="密码">
+    <button @click="login">登录</button>
+    <p style="font-size:12px;color:#888;margin-top:14px;">默认 admin / admin</p>
+  </div>
+
+  <div v-else class="layout">
+    <aside class="sidebar">
+      <h1>🛡️ 后管系统</h1>
+      <div class="menu-item" :class="{ active: tab==='dashboard' }" @click="tab='dashboard'">📊 看板</div>
+      <div class="menu-item" :class="{ active: tab==='sessions' }" @click="tab='sessions'; loadSessions()">💬 会话审核</div>
+      <div class="menu-item" :class="{ active: tab==='audit' }" @click="tab='audit'; loadAudit()">📋 审计日志</div>
+    </aside>
+
+    <main class="main">
+      <!-- 看板 -->
+      <div v-if="tab==='dashboard'">
+        <h2>实时看板</h2>
+        <div class="stats">
+          <div class="stat-card"><div class="num">{{ stats.totalSessions || '--' }}</div><div class="label">总会话数</div></div>
+          <div class="stat-card"><div class="num" style="color:#faad14;">{{ stats.queued || 0 }}</div><div class="label">排队中</div></div>
+          <div class="stat-card"><div class="num" style="color:#52c41a;">{{ stats.inSession || 0 }}</div><div class="label">通话中</div></div>
+          <div class="stat-card"><div class="num" style="color:#722ed1;">{{ stats.todaySessions || 0 }}</div><div class="label">今日会话</div></div>
+        </div>
+        <button @click="loadStats">🔄 刷新</button>
+      </div>
+
+      <!-- 会话审核 -->
+      <div v-if="tab==='sessions'">
+        <h2>会话列表</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>ID</th><th>客户</th><th>坐席</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="s in sessions" :key="s.id">
+                <td>#{{ s.id }}</td>
+                <td>{{ s.customerId }}</td>
+                <td>{{ s.agentUsername || '-' }}</td>
+                <td>{{ s.status }}</td>
+                <td>{{ s.createdAt }}</td>
+                <td>
+                  <button v-if="s.status !== 'ENDED'" class="danger" @click="forceHangup(s.id)">强制挂断</button>
+                  <button @click="viewMsgs(s.id)">消息</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 审计 -->
+      <div v-if="tab==='audit'">
+        <h2>审计日志</h2>
+        <div class="card">
+          <select v-model="auditAction" @change="loadAudit" style="margin-bottom:10px;padding:6px;">
+            <option value="">全部</option>
+            <option value="LOGIN">登录</option>
+            <option value="TRANSFER_QUEUE">转人工</option>
+            <option value="ACCEPT">接听</option>
+            <option value="HANGUP">挂断</option>
+            <option value="ADMIN_FORCE_HANGUP">强制挂断</option>
+          </select>
+          <table>
+            <thead><tr><th>时间</th><th>用户</th><th>角色</th><th>操作</th><th>对象</th><th>IP</th><th>详情</th></tr></thead>
+            <tbody>
+              <tr v-for="a in auditList" :key="a.id">
+                <td>{{ a.createdAt }}</td>
+                <td>{{ a.userId || '-' }}</td>
+                <td>{{ a.userRole || '-' }}</td>
+                <td>{{ a.action }}</td>
+                <td>{{ a.targetType }}/{{ a.targetId }}</td>
+                <td>{{ a.ip }}</td>
+                <td style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ a.detail }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 强制挂断弹窗 -->
+      <div v-if="showForceHangup" class="modal-mask">
+        <div class="modal">
+          <h3>强制挂断会话 #{{ forceHangupSession }}</h3>
+          <textarea v-model="forceHangupReason" placeholder="原因（必填）" style="width:100%;min-height:80px;padding:9px;border:1px solid #d9d9d9;border-radius:6px;"></textarea>
+          <div class="row">
+            <button class="cancel" @click="showForceHangup=false">取消</button>
+            <button class="primary" @click="confirmForceHangup">确认挂断</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const { createApp, ref } = Vue;
+
+createApp({
+  setup() {
+    const token = ref(localStorage.getItem('admin_token') || '');
+    const username = ref('admin');
+    const password = ref('admin');
+    const tab = ref('dashboard');
+    const stats = ref({});
+    const sessions = ref([]);
+    const auditList = ref([]);
+    const auditAction = ref('');
+    const showForceHangup = ref(false);
+    const forceHangupSession = ref(null);
+    const forceHangupReason = ref('');
+
+    function authHeader() { return { 'Authorization': 'Bearer ' + token.value }; }
+
+    async function login() {
+      const r = await fetch('/auth/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.value, password: password.value })
+      });
+      const d = await r.json();
+      if (d.code) return alert('登录失败');
+      token.value = d.data.token;
+      localStorage.setItem('admin_token', token.value);
+      loadStats();
+    }
+
+    async function loadStats() {
+      const r = await fetch('/im/admin/stats', { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) stats.value = d.data;
+    }
+
+    async function loadSessions() {
+      const r = await fetch('/im/admin/sessions?page=0&size=50', { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) sessions.value = d.data;
+    }
+
+    function forceHangup(sid) {
+      forceHangupSession.value = sid;
+      forceHangupReason.value = '';
+      showForceHangup.value = true;
+    }
+
+    async function confirmForceHangup() {
+      if (!forceHangupReason.value.trim()) return alert('请填写原因');
+      const r = await fetch(`/im/admin/sessions/${forceHangupSession.value}/force-hangup?reason=${encodeURIComponent(forceHangupReason.value)}`, {
+        method: 'POST',
+        headers: authHeader()
+      });
+      const d = await r.json();
+      if (d.code) return alert('失败: ' + d.msg);
+      alert('已强制挂断');
+      showForceHangup.value = false;
+      loadSessions();
+    }
+
+    async function loadAudit() {
+      const url = auditAction.value
+          ? `/im/admin/audit-logs?action=${auditAction.value}&page=0&size=50`
+          : '/im/admin/audit-logs?page=0&size=50';
+      const r = await fetch(url, { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) auditList.value = d.data.content || [];
+    }
+
+    function viewMsgs(sid) {
+      alert('查看会话 #' + sid + ' 消息详情（演示）');
+    }
+
+    if (token.value) loadStats();
+
+    return {
+      token, username, password, tab, stats, sessions, auditList, auditAction,
+      showForceHangup, forceHangupSession, forceHangupReason,
+      login, loadStats, loadSessions, loadAudit, forceHangup, confirmForceHangup, viewMsgs
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

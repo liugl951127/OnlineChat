@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>在线客服</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
+    .page { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fff; display: flex; flex-direction: column; }
+    header { padding: 12px 16px; background: #1677ff; color: #fff; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    header .status { font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px; }
+    header .status.robot { background: #722ed1; }
+    header .status.queue { background: #faad14; }
+    header .status.live { background: #52c41a; }
+    header .status.ended { background: #8c8c8c; }
+    header .icons { display: flex; gap: 12px; align-items: center; }
+    header .icons span { cursor: pointer; font-size: 18px; }
+    .body { flex: 1; padding: 12px; overflow-y: auto; background: #f4f6fa; }
+    .msg { display: flex; margin-bottom: 10px; }
+    .msg .bubble { padding: 8px 12px; border-radius: 10px; max-width: 78%; word-break: break-word; line-height: 1.5; font-size: 14px; }
+    .msg.me { justify-content: flex-end; }
+    .msg.me .bubble { background: #1677ff; color: #fff; }
+    .msg.other .bubble { background: #fff; border: 1px solid #e6ebf2; }
+    .msg.robot .bubble { background: #f9f0ff; border: 1px solid #d3adf7; color: #22075e; }
+    .msg.system { justify-content: center; }
+    .msg.system .bubble { background: transparent; color: #8c8c8c; font-size: 12px; border: none; }
+    /* 富文本 */
+    .rich-card { background: #fff; border: 1px solid #e6ebf2; border-radius: 10px; padding: 12px; max-width: 78%; }
+    .rich-card .title { font-weight: 600; margin-bottom: 6px; }
+    .rich-card .desc { font-size: 13px; color: #555; margin-bottom: 8px; }
+    .rich-card .row { font-size: 13px; display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px dashed #eee; }
+    .rich-card .row .label { color: #888; }
+    .rich-card .row .val { color: #1677ff; font-weight: 600; }
+    .rich-card.product { border-color: #ffd591; background: #fffbe6; }
+    .rich-card.product .rate { font-size: 28px; color: #fa8c16; font-weight: 700; }
+    .top-actions { padding: 8px 12px; background: #fff; border-top: 1px solid #eef0f4; display: flex; gap: 6px; flex-wrap: wrap; }
+    .top-actions button { font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid #1677ff; background: #fff; color: #1677ff; cursor: pointer; }
+    .top-actions button.danger { border-color: #ff4d4f; color: #ff4d4f; }
+    .top-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .panel { background: #fff; padding: 10px 12px; border-top: 1px solid #eef0f4; display: flex; gap: 8px; }
+    .panel input { flex: 1; padding: 9px 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; }
+    .panel button { padding: 0 16px; background: #1677ff; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .panel button:disabled { background: #bfbfbf; }
+    /* 历史抽屉 */
+    .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50; display: flex; }
+    .drawer { width: 80%; max-width: 360px; background: #fff; margin-left: auto; padding: 16px; overflow-y: auto; }
+    .drawer h3 { margin: 0 0 12px; }
+    .drawer .item { padding: 12px; border: 1px solid #e6ebf2; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+    .drawer .item:hover { background: #f6f8fc; }
+    .drawer .item .meta { font-size: 11px; color: #888; }
+    /* 交易弹窗 */
+    .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 60; }
+    .modal { background: #fff; border-radius: 12px; padding: 22px; width: 88%; max-width: 360px; }
+    .modal h3 { margin: 0 0 12px; }
+    .modal input, .modal select { width: 100%; padding: 9px 11px; border: 1px solid #d9d9d9; border-radius: 6px; margin-bottom: 10px; font-size: 14px; }
+    .modal .row { display: flex; gap: 8px; }
+    .modal button { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    .modal button.primary { background: #1677ff; color: #fff; }
+    .modal button.cancel { background: #fff; color: #555; border: 1px solid #d9d9d9; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="page">
+    <header>
+      <span>在线客服</span>
+      <div class="icons">
+        <span title="历史会话" @click="openHistory">📂</span>
+        <span class="status" :class="statusClass">{{ statusText }}</span>
+      </div>
+    </header>
+
+    <div v-if="!authed" class="body">
+      <div style="text-align:center;padding:60px 20px;color:#888;">正在登录...</div>
+    </div>
+
+    <div v-if="authed" class="body" ref="msgList">
+      <div v-for="m in messages" :key="m.id || m.ts" class="msg"
+           :class="{ me: m.fromRole==='CUSTOMER', other: m.fromRole==='AGENT', robot: m.fromRole==='ROBOT', system: m.fromRole==='SYSTEM' }">
+        <div v-if="m.type==='RICH'" class="rich-card" :class="m.payload?.type?.toLowerCase()">
+          <div v-if="m.payload?.type==='BILL'" class="title">{{ m.payload.text }}</div>
+          <div v-if="m.payload?.type==='BILL' && m.payload.payload?.items">
+            <div v-for="(it, idx) in m.payload.payload.items" :key="idx">
+              <div v-if="idx===0" class="row"><span class="label">共 {{ it.count }} 笔 / 总额 ¥{{ it.total?.toFixed(2) }}</span></div>
+              <div v-else class="row"><span class="label">{{ it.date }} {{ it.type }}</span><span class="val">¥{{ it.amount?.toFixed(2) }}</span></div>
+            </div>
+          </div>
+          <div v-if="m.payload?.type==='PRODUCT'">
+            <div class="title">{{ m.payload.payload?.name }}</div>
+            <div class="desc">{{ m.payload.payload?.desc }} ｜ {{ m.payload.payload?.period }}</div>
+            <div class="rate">{{ m.payload.payload?.rate }}%</div>
+            <div class="desc">年化收益率</div>
+          </div>
+          <div v-if="m.payload?.type==='CARD'">
+            <div class="title">{{ m.payload.text }}</div>
+            <div class="desc">{{ m.payload.payload?.desc }}</div>
+          </div>
+          <div v-if="m.payload?.type==='TEXT'">{{ m.payload.text }}</div>
+        </div>
+        <div v-else class="bubble">{{ m.content }}</div>
+      </div>
+      <div v-if="messages.length===0" class="msg robot"><div class="bubble">👋 你好，我是智能客服小助手。可以试试：<br>• 查账单<br>• 产品<br>• 转人工</div></div>
+    </div>
+
+    <div v-if="authed && session && session.status==='IN_SESSION'" class="top-actions">
+      <button @click="openTrade">💼 办理业务</button>
+      <button class="danger" @click="customerHangup">❌ 挂断</button>
+    </div>
+    <div v-if="authed && session && session.status==='ROBOT'" class="top-actions">
+      <button @click="transferToAgent">📞 转人工</button>
+      <button @click="quickQuery('bills')">📊 查账单</button>
+      <button @click="quickQuery('products')">💰 查产品</button>
+    </div>
+
+    <div v-if="authed && (session?.status==='ROBOT' || session?.status==='IN_SESSION')" class="panel">
+      <input v-model="text" placeholder="输入消息..." @keyup.enter="sendText">
+      <button @click="sendText" :disabled="!text.trim()">发送</button>
+    </div>
+
+    <!-- 历史抽屉 -->
+    <div v-if="showHistory" class="drawer-mask" @click.self="showHistory=false">
+      <div class="drawer">
+        <h3>📂 历史会话</h3>
+        <div v-if="history.length===0" style="color:#888;text-align:center;padding:20px;">暂无历史</div>
+        <div v-for="s in history" :key="s.id" class="item" @click="viewHistory(s.id)">
+          <div style="font-weight:600;">会话 #{{ s.id }} ｜ {{ s.status }}</div>
+          <div class="meta">{{ s.createdAt }}</div>
+        </div>
+        <button @click="showHistory=false" style="width:100%;padding:10px;margin-top:14px;background:#1677ff;color:#fff;border:none;border-radius:8px;">关闭</button>
+      </div>
+    </div>
+
+    <!-- 历史消息详情 -->
+    <div v-if="showHistoryDetail" class="modal-mask" @click.self="showHistoryDetail=false">
+      <div class="modal" style="max-width:480px;">
+        <h3>会话 #{{ historyDetailSession }} 历史消息</h3>
+        <div style="max-height:60vh;overflow-y:auto;">
+          <div v-for="m in historyMessages" :key="m.id" style="margin-bottom:8px;font-size:13px;">
+            <div style="color:#888;font-size:11px;">[{{ m.fromRole }}] {{ m.createdAt }}</div>
+            <div v-if="m.type==='TEXT'" style="padding:6px 10px;background:#f6f8fc;border-radius:6px;">{{ m.content }}</div>
+            <div v-else-if="m.type==='RICH'" style="padding:6px 10px;background:#fffbe6;border-radius:6px;">[富文本] {{ m.content }}</div>
+          </div>
+        </div>
+        <button @click="showHistoryDetail=false" style="width:100%;padding:10px;background:#1677ff;color:#fff;border:none;border-radius:6px;margin-top:10px;">关闭</button>
+      </div>
+    </div>
+
+    <!-- 交易弹窗 -->
+    <div v-if="showTrade" class="modal-mask" @click.self="showTrade=false">
+      <div class="modal">
+        <h3>办理业务</h3>
+        <select v-model="tradeForm.bizType">
+          <option value="RECHARGE">充值</option>
+          <option value="WITHDRAW">提现</option>
+          <option value="TRADE">理财购买</option>
+        </select>
+        <input v-model.number="tradeForm.amount" type="number" placeholder="金额">
+        <input v-model="tradeForm.idCardNo" placeholder="身份证号（FAIL=拒绝）">
+        <input v-model="tradeForm.remark" placeholder="备注">
+        <div class="row">
+          <button class="cancel" @click="showTrade=false">取消</button>
+          <button class="primary" @click="submitTrade">提交</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
+
+createApp({
+  setup() {
+    const authed = ref(false);
+    const token = ref('');
+    const customerId = ref('');
+    const session = ref(null);
+    const messages = ref([]);
+    const text = ref('');
+    const msgList = ref(null);
+    const showHistory = ref(false);
+    const history = ref([]);
+    const showHistoryDetail = ref(false);
+    const historyDetailSession = ref(null);
+    const historyMessages = ref([]);
+    const showTrade = ref(false);
+    const tradeForm = reactive({ bizType: 'RECHARGE', amount: 100, idCardNo: '', remark: '' });
+    let stompClient = null;
+
+    const statusText = computed(() => {
+      const map = { ROBOT: '🤖 智能客服', QUEUED: '⏳ 排队中', IN_SESSION: '🟢 通话中', TRADE_CHECKING: '⏳ 核查中', ENDED: '已结束' };
+      return session.value ? (map[session.value.status] || session.value.status) : '';
+    });
+    const statusClass = computed(() => {
+      const map = { ROBOT: 'robot', QUEUED: 'queue', IN_SESSION: 'live', TRADE_CHECKING: 'live', ENDED: 'ended' };
+      return session.value ? (map[session.value.status] || '') : '';
+    });
+
+    function authHeader() { return { 'Authorization': 'Bearer ' + token.value }; }
+
+    async function silentLogin() {
+      const tempCode = localStorage.getItem('cs_temp') || ('auto-' + Math.random().toString(36).slice(2, 8));
+      localStorage.setItem('cs_temp', tempCode);
+      const r = await fetch('/auth/silent-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempCode })
+      });
+      const data = await r.json();
+      if (data.code) { alert('登录失败'); return; }
+      token.value = data.data.token;
+      customerId.value = data.data.customerId;
+      authed.value = true;
+      await loadActive();
+      connectWs();
+      scrollBottom();
+    }
+
+    async function loadActive() {
+      const r = await fetch('/im/customer/session/active', { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) session.value = d.data;
+    }
+
+    async function sendText() {
+      if (!text.value.trim()) return;
+      const content = text.value.trim();
+      text.value = '';
+      // ROBOT 状态走 REST（机器人应答）
+      if (session.value?.status === 'ROBOT') {
+        const r = await fetch('/im/customer/chat', {
+          method: 'POST',
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: content })
+        });
+        const d = await r.json();
+        // 客户自己消息已由服务端 broadcast，回显即可
+        messages.value.push({ fromRole: 'CUSTOMER', content, type: 'TEXT', ts: Date.now() });
+        if (d.data?.robotReply) {
+          messages.value.push({ fromRole: 'ROBOT', content: d.data.robotReply.text, type: 'RICH', payload: d.data.robotReply, ts: Date.now() });
+        }
+        if (d.data?.transferred) {
+          session.value = d.data.session;
+          // 重新连 WS（认证变了，可能需要重连）
+          connectWs();
+        }
+        scrollBottom();
+      } else if (session.value?.status === 'IN_SESSION') {
+        stompClient.send('/app/customer/chat', {}, JSON.stringify({ sessionId: session.value.id, content, type: 'TEXT' }));
+      }
+    }
+
+    async function quickQuery(type) {
+      const url = type === 'bills' ? '/im/customer/bills?days=7' : '/im/customer/products';
+      const r = await fetch(url, { headers: authHeader() });
+      const d = await r.json();
+      if (d.code) return;
+      // 包装成 RICH 消息推到聊天区
+      messages.value.push({
+        fromRole: 'CUSTOMER', content: type === 'bills' ? '查询最近 7 天账单' : '查看理财产品',
+        type: 'TEXT', ts: Date.now()
+      });
+      // 这里简化：只展示首条账单/产品
+      if (type === 'bills') {
+        messages.value.push({
+          fromRole: 'ROBOT',
+          content: '已为你查询账单',
+          type: 'RICH',
+          payload: { type: 'BILL', text: '最近 7 天账单', payload: { items: d.data } },
+          ts: Date.now()
+        });
+      } else {
+        const list = d.data || [];
+        for (const p of list.slice(0, 3)) {
+          messages.value.push({
+            fromRole: 'ROBOT',
+            content: p.name,
+            type: 'RICH',
+            payload: { type: 'PRODUCT', text: p.name, payload: p },
+            ts: Date.now()
+          });
+        }
+      }
+      scrollBottom();
+    }
+
+    async function transferToAgent() {
+      const r = await fetch('/im/customer/session/transfer-to-agent', { method: 'POST', headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) {
+        session.value = d.data;
+        connectWs();
+      }
+    }
+
+    async function customerHangup() {
+      if (!confirm('确认挂断？')) return;
+      const r = await fetch('/im/customer/session/hangup', { method: 'POST', headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) {
+        session.value = d.data;
+        if (stompClient) stompClient.disconnect();
+      }
+    }
+
+    async function openTrade() {
+      showTrade.value = true;
+    }
+
+    async function submitTrade() {
+      const r = await fetch('/trade/orders', {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(tradeForm)
+      });
+      const d = await r.json();
+      if (d.code) {
+        alert('下单失败: ' + d.msg);
+      } else {
+        alert('下单成功！金额 ¥' + d.data.amount);
+        showTrade.value = false;
+      }
+    }
+
+    async function openHistory() {
+      showHistory.value = true;
+      const r = await fetch('/im/customer/sessions', { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) history.value = d.data;
+    }
+
+    async function viewHistory(sid) {
+      showHistoryDetail.value = true;
+      historyDetailSession.value = sid;
+      const r = await fetch(`/im/customer/messages?sessionId=${sid}`, { headers: authHeader() });
+      const d = await r.json();
+      if (!d.code) historyMessages.value = d.data;
+    }
+
+    function connectWs() {
+      if (stompClient) { try { stompClient.disconnect(); } catch (e) {} }
+      const sock = new SockJS(`/ws?customerId=${customerId.value}`);
+      const client = Stomp.over(sock);
+      client.debug = null;
+      client.connect({}, () => {
+        client.subscribe('/topic/customer/' + customerId.value, (msg) => {
+          const env = JSON.parse(msg.body);
+          handleWs(env);
+        });
+      });
+      stompClient = client;
+    }
+
+    function handleWs(env) {
+      if (env.type === 'ENDED' || env.type === 'AGENT_JOINED' || env.type === 'TRANSFERED') {
+        if (env.payload) session.value = env.payload;
+      }
+      if (env.type === 'CHAT_TEXT' || env.type === 'SYSTEM') {
+        messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'TEXT', ts: env.ts });
+        scrollBottom();
+      }
+      if (env.type === 'RICH') {
+        messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: env.payload, ts: env.ts });
+        scrollBottom();
+      }
+    }
+
+    function scrollBottom() {
+      nextTick(() => { if (msgList.value) msgList.value.scrollTop = msgList.value.scrollHeight; });
+    }
+
+    onMounted(() => {
+      // 拿 token from query（OAuth 回调）或本地缓存（静默登录）
+      const params = new URLSearchParams(location.search);
+      const t = params.get('token');
+      if (t) {
+        token.value = t;
+        authed.value = true;
+        loadActive();
+        connectWs();
+      } else {
+        silentLogin();
+      }
+    });
+
+    return {
+      authed, token, customerId, session, messages, text, msgList,
+      showHistory, history, showHistoryDetail, historyDetailSession, historyMessages,
+      showTrade, tradeForm,
+      statusText, statusClass,
+      silentLogin, sendText, quickQuery, transferToAgent, customerHangup,
+      openTrade, submitTrade, openHistory, viewHistory
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

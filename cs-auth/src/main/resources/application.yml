@@ -1,0 +1,41 @@
+server:
+  port: 9001
+
+spring:
+  application:
+    name: cs-auth
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+  datasource:
+    url: jdbc:h2:mem:auth;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+wechat:
+  oa:
+    app-id: demo-oa-appid
+    app-secret: demo-oa-secret
+    redirect-uri: https://yourdomain.com/auth/wechat-oa/callback
+    mock: true
+  work:
+    corp-id: demo-corp
+    agent-id: demo-agent
+    app-secret: demo-secret
+    redirect-uri: https://yourdomain.com/auth/wechat-work/callback
+    mock: true
+
+cs:
+  jwt:
+    secret: default-jwt-secret-change-me-in-production-32-chars-min
+    ttl-ms: 86400000
+
+logging:
+  level:
+    com.example.auth: INFO
