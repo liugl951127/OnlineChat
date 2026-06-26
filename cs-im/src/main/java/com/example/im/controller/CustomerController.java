@@ -8,6 +8,7 @@ import com.example.im.client.TradeClient;
 import com.example.im.domain.ChatMessage;
 import com.example.im.domain.ChatSession;
 import com.example.im.service.AuditService;
+import com.example.im.service.MessageService;
 import com.example.im.service.OfflinePushService;
 import com.example.im.service.SessionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,7 @@ public class CustomerController {
     private final OfflinePushService offlinePush;
     private final RobotClient robotClient;
     private final TradeClient tradeClient;
+    private final MessageService messageService;
     private final ObjectMapper json = new ObjectMapper();
 
     @GetMapping("/session/active")
@@ -96,8 +98,10 @@ public class CustomerController {
     }
 
     @GetMapping("/messages")
-    public ApiResponse<List<ChatMessage>> messages(@RequestParam Long sessionId) {
-        return ApiResponse.ok(sessionService.messagesOf(sessionId));
+    public ApiResponse<Map<String, Object>> messages(@RequestParam Long sessionId) {
+        List<ChatMessage> msgs = sessionService.messagesOf(sessionId);
+        Map<Long, Map<String, Long>> reactions = messageService.reactionsOfMessages(sessionId);
+        return ApiResponse.ok(Map.of("messages", msgs, "reactions", reactions));
     }
 
     /** 账单查询（富文本） */

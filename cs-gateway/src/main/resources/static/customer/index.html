@@ -398,6 +398,92 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* 消息气泡交互 */
+    .msg .bubble { cursor: pointer; user-select: none; transition: transform var(--duration-fast); position: relative; }
+    .msg .bubble:hover { transform: scale(1.01); }
+    .msg-actions {
+      position: absolute; top: -36px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 4px 6px; box-shadow: var(--shadow-md);
+      display: flex; gap: 2px;
+      z-index: var(--z-dropdown);
+      animation: fadeIn var(--duration-fast) var(--ease-out);
+      white-space: nowrap;
+    }
+    .msg.me .msg-actions { right: 0; }
+    .msg.other .msg-actions, .msg.robot .msg-actions { left: 0; }
+    .msg-actions .action-btn {
+      width: 28px; height: 28px; background: transparent; border: none;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .msg-actions .action-btn:hover { background: var(--color-bg-hover); transform: scale(1.15); }
+    .reply-preview {
+      padding: 6px 10px; background: var(--color-bg);
+      border-left: 3px solid var(--color-primary); border-radius: var(--radius-sm);
+      margin-bottom: 6px; font-size: var(--font-xs); color: var(--color-text-secondary);
+    }
+    .reply-preview .reply-author { font-weight: var(--font-semibold); color: var(--color-text); margin-bottom: 2px; }
+    .reply-preview .reply-content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .reply-indicator {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      background: var(--color-primary-bg); border-left: 3px solid var(--color-primary);
+      font-size: var(--font-sm); color: var(--color-text-secondary);
+      animation: fadeIn var(--duration-fast) var(--ease-out);
+    }
+    .reply-indicator .reply-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .reply-indicator .reply-cancel {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--color-text-tertiary); padding: 2px 6px; border-radius: var(--radius-sm);
+    }
+    .reply-indicator .reply-cancel:hover { background: var(--color-bg); color: var(--color-text); }
+    .reactions-bar { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .reaction-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 8px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      font-size: var(--font-xs);
+      cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .reaction-chip:hover { border-color: var(--color-primary); background: var(--color-primary-bg); transform: translateY(-1px); }
+    .reaction-chip.active { background: var(--color-primary-light); border-color: var(--color-primary); color: var(--color-primary); }
+    .reaction-picker {
+      position: absolute; top: -44px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 4px 8px; box-shadow: var(--shadow-md);
+      display: flex; gap: 2px;
+      z-index: var(--z-dropdown);
+      animation: fadeInUp var(--duration-fast) var(--ease-out);
+    }
+    .reaction-picker button {
+      width: 32px; height: 32px; background: transparent; border: none;
+      border-radius: 50%; font-size: 20px; cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .reaction-picker button:hover { background: var(--color-bg-hover); transform: scale(1.3); }
+    .msg.recalled .bubble {
+      background: transparent; border: 1px dashed var(--color-border);
+      color: var(--color-text-tertiary);
+      font-style: italic; font-size: var(--font-xs);
+    }
+    .toast {
+      position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+      padding: var(--space-2) var(--space-4);
+      background: rgba(0,0,0,0.85); color: #fff;
+      border-radius: var(--radius-md); font-size: var(--font-sm);
+      z-index: var(--z-toast);
+      animation: fadeInUp var(--duration-base) var(--ease-out);
+    }
+
     /* Emoji 选择器 */
     .emoji-panel {
       position: absolute;
@@ -577,7 +663,7 @@
     <!-- 消息区 -->
     <div v-if="authed" class="chat-body" ref="msgList">
       <div v-for="m in messages" :key="m.id || m.ts" class="msg"
-           :class="{ me: m.fromRole==='CUSTOMER', other: m.fromRole==='AGENT', robot: m.fromRole==='ROBOT', system: m.fromRole==='SYSTEM' }">
+           :class="{ me: m.fromRole==='CUSTOMER', other: m.fromRole==='AGENT', robot: m.fromRole==='ROBOT', system: m.fromRole==='SYSTEM', recalled: m.recalled===1 }">
         <div class="msg-avatar" :class="avatarClass(m.fromRole)">{{ avatarEmoji(m.fromRole) }}</div>
         <div class="msg-body">
           <div class="msg-name">{{ roleLabel(m.fromRole) }} · {{ formatTime(m.ts) }}</div>
@@ -621,6 +707,27 @@
             <div v-else class="bubble">{{ m.payload?.text || m.content }}</div>
           </div>
           <div v-else class="bubble">{{ m.content }}</div>
+
+          <!-- 交互菜单 + 表情反应 -->
+          <template v-if="m.recalled !== 1 && m.fromRole !== 'SYSTEM' && m.id">
+            <div class="msg-actions" @click.stop>
+              <button class="action-btn" title="复制" @click="copyMessage(m)">📋</button>
+              <button class="action-btn" title="引用" @click="startReply(m)">↩️</button>
+              <button class="action-btn" title="表情反应" @click="toggleReactionPicker(m)">😊</button>
+              <button v-if="canRecall(m)" class="action-btn" title="撤回" @click="recallMessage(m)">↶</button>
+            </div>
+            <div v-if="showReactionPickerFor === m.id" class="reaction-picker" @click.stop>
+              <button v-for="e in ['👍','❤️','😂','😮','🎉','🙏','👏','👎']" :key="e" @click="reactTo(m, e)">{{ e }}</button>
+            </div>
+          </template>
+
+          <!-- 已选表情汇总 -->
+          <div v-if="m.reactions && Object.keys(m.reactions).length > 0" class="reactions-bar" @click.stop>
+            <span v-for="(count, emoji) in m.reactions" :key="emoji"
+                  class="reaction-chip"
+                  :class="{ active: hasReacted(m, emoji) }"
+                  @click="reactTo(m, emoji)">{{ emoji }} {{ count }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -640,6 +747,13 @@
       <button class="tool-btn" @click="quickQuery('products')" v-if="session.status==='ROBOT'">💰 看产品</button>
       <button class="tool-btn" @click="openTrade" v-if="session.status==='IN_SESSION'">💼 办理业务</button>
       <button class="tool-btn danger" @click="customerHangup" v-if="session.status==='IN_SESSION'">❌ 挂断</button>
+    </div>
+
+    <!-- 引用提示 -->
+    <div v-if="replyTo" class="reply-indicator">
+      <span style="font-size: 16px;">↩️</span>
+      <span class="reply-info">引用 <strong>{{ roleLabel(replyTo.fromRole) }}</strong>：{{ (replyTo.content || '').substring(0, 40) }}</span>
+      <button class="reply-cancel" @click="replyTo=null">✕</button>
     </div>
 
     <!-- 输入 -->
@@ -747,6 +861,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast 提示 -->
+    <div v-if="toast" class="toast">{{ toast }}</div>
   </div>
 </div>
 
@@ -774,6 +891,11 @@ createApp({
     const emojiTab = ref('face');
     const uploading = ref(false);
     const uploadFileName = ref('');
+    const replyTo = ref(null);                   // {id, content, fromRole, ...}
+    const showReactionPickerFor = ref(null);     // messageId or null
+    const myReactions = reactive({});            // {messageId: [emoji, ...]}
+    const toast = ref('');
+    let toastTimer = null;
     let stompClient = null;
     let waitTimer = null;
 
@@ -850,18 +972,32 @@ createApp({
       if (!d.code) session.value = d.data;
     }
 
+    async function loadMessages(sid) {
+      const r = await fetch(`/im/customer/messages?sessionId=${sid}`, { headers: authHeader() });
+      const d = await r.json();
+      if (d.code) return [];
+      const msgs = d.data?.messages || d.data || [];
+      const reactions = d.data?.reactions || {};
+      // 把反应挂到对应消息上
+      msgs.forEach(m => { if (reactions[m.id]) m.reactions = reactions[m.id]; });
+      return msgs;
+    }
+
     async function sendText() {
       if (!text.value.trim()) return;
       const content = text.value.trim();
+      const replyToId = replyTo.value ? replyTo.value.id : null;
       text.value = '';
+      replyTo.value = null;
       if (session.value?.status === 'ROBOT') {
+        // 机器人状态走原有接口（机器人需识别整段文本）
         const r = await fetch('/im/customer/chat', {
           method: 'POST',
           headers: { ...authHeader(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: content })
         });
         const d = await r.json();
-        messages.value.push({ fromRole: 'CUSTOMER', content, type: 'TEXT', ts: Date.now() });
+        messages.value.push({ fromRole: 'CUSTOMER', content, type: 'TEXT', ts: Date.now(), id: 'tmp-' + Date.now() });
         if (d.data?.robotReply) {
           messages.value.push({ fromRole: 'ROBOT', content: d.data.robotReply.text, type: 'RICH', payload: d.data.robotReply, ts: Date.now() });
         }
@@ -870,8 +1006,19 @@ createApp({
           connectWs();
         }
         scrollBottom();
-      } else if (session.value?.status === 'IN_SESSION') {
-        stompClient.send('/app/customer/chat', {}, JSON.stringify({ sessionId: session.value.id, content, type: 'TEXT' }));
+      } else {
+        // IN_SESSION / QUEUED 走 REST 接口（支持引用）
+        try {
+          const r = await fetch('/im/message/send', {
+            method: 'POST',
+            headers: { ...authHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: session.value.id, content, replyToId })
+          });
+          const d = await r.json();
+          if (d.code) showToast(d.msg || '发送失败');
+        } catch (e) {
+          showToast('网络错误');
+        }
       }
     }
 
@@ -956,6 +1103,114 @@ createApp({
       }
     }
 
+    function showToast(text) {
+      toast.value = text;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.value = '', 2000);
+    }
+
+    async function copyMessage(m) {
+      const text = m.content || (m.payload && m.payload.text) || '';
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('已复制');
+      } catch (e) {
+        // 退化方案
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); showToast('已复制'); }
+        catch (_) { showToast('复制失败'); }
+        document.body.removeChild(ta);
+      }
+      showReactionPickerFor.value = null;
+    }
+
+    function startReply(m) {
+      replyTo.value = { id: m.id, content: m.content, fromRole: m.fromRole, fromUser: m.fromUser };
+      showReactionPickerFor.value = null;
+      // 聚焦输入框
+      nextTick(() => {
+        const inp = document.querySelector('.chat-composer input');
+        if (inp) inp.focus();
+      });
+    }
+
+    function toggleReactionPicker(m) {
+      showReactionPickerFor.value = showReactionPickerFor.value === m.id ? null : m.id;
+    }
+
+    async function reactTo(m, emoji) {
+      showReactionPickerFor.value = null;
+      try {
+        const r = await fetch(`/im/message/${m.id}/react`, {
+          method: 'POST',
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emoji })
+        });
+        const d = await r.json();
+        if (d.code) return showToast(d.msg || '操作失败');
+        // 更新本地统计（后端也会 WS 广播）
+        applyReactionLocal(m.id, emoji, d.data.added, d.data.stats);
+      } catch (e) {
+        showToast('网络错误');
+      }
+    }
+
+    function applyReactionLocal(messageId, emoji, added, stats) {
+      const m = messages.value.find(x => x.id === messageId);
+      if (!m) return;
+      if (!m.reactions) m.reactions = {};
+      m.reactions = stats || m.reactions;
+      // 维护我点过的 emoji 集合
+      if (!myReactions[messageId]) myReactions[messageId] = [];
+      const list = myReactions[messageId];
+      const idx = list.indexOf(emoji);
+      if (added && idx < 0) list.push(emoji);
+      if (!added && idx >= 0) list.splice(idx, 1);
+    }
+
+    function hasReacted(m, emoji) {
+      const list = myReactions[m.id];
+      return list && list.includes(emoji);
+    }
+
+    function canRecall(m) {
+      if (!m || m.fromRole !== 'CUSTOMER') return false;
+      if (!m.createdAt && !m.ts) return false;
+      const t = new Date(m.createdAt || m.ts).getTime();
+      return (Date.now() - t) / 1000 < 120;
+    }
+
+    async function recallMessage(m) {
+      if (!confirm('确认撤回这条消息？超过 2 分钟不可撤回')) return;
+      showReactionPickerFor.value = null;
+      try {
+        const r = await fetch(`/im/message/${m.id}/recall`, {
+          method: 'POST', headers: authHeader()
+        });
+        const d = await r.json();
+        if (d.code) return showToast(d.msg || '撤回失败');
+        // 本地更新
+        const idx = messages.value.findIndex(x => x.id === m.id);
+        if (idx >= 0) {
+          messages.value[idx].recalled = 1;
+          messages.value[idx].content = '';
+        }
+        showToast('已撤回');
+      } catch (e) {
+        showToast('网络错误');
+      }
+    }
+
+    function scrollToMessage(target) {
+      // target 可以是 messageId 或消息对象
+      const id = typeof target === 'object' ? target.id : target;
+      const el = msgList.value?.querySelector?.(`[data-msg-id="${id}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     async function openHistory() {
       showHistory.value = true;
       const r = await fetch('/im/customer/sessions', { headers: authHeader() });
@@ -966,9 +1221,7 @@ createApp({
     async function viewHistory(sid) {
       showHistoryDetail.value = true;
       historyDetailSession.value = sid;
-      const r = await fetch(`/im/customer/messages?sessionId=${sid}`, { headers: authHeader() });
-      const d = await r.json();
-      if (!d.code) historyMessages.value = d.data;
+      historyMessages.value = await loadMessages(sid);
     }
 
     function startWaitPoll() {
@@ -1008,17 +1261,41 @@ createApp({
         if (env.type === 'AGENT_JOINED') { if (waitTimer) { clearInterval(waitTimer); waitTimer = null; } }
       }
       if (env.type === 'CHAT_TEXT' || env.type === 'SYSTEM') {
-        messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'TEXT', ts: env.ts });
+        messages.value.push({
+          id: env.payload?.id,
+          sessionId: env.sessionId,
+          fromRole: env.fromRole,
+          fromUser: env.fromUser,
+          content: env.content,
+          type: env.type === 'SYSTEM' ? 'SYSTEM' : 'TEXT',
+          replyToId: env.payload?.replyToId,
+          recalled: env.payload?.recalled || 0,
+          ts: env.ts
+        });
         scrollBottom();
       }
       if (env.type === 'RICH') {
-        messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: env.payload, ts: env.ts });
+        messages.value.push({
+          id: env.payload?.id,
+          fromRole: env.fromRole, content: env.content,
+          type: 'RICH', payload: env.payload, ts: env.ts
+        });
         scrollBottom();
       }
       if (env.type === 'FILE') {
         const p = env.payload || {};
         messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: { type: p.contentType || 'FILE', url: p.url, originalName: p.originalName, mimeType: p.mimeType, size: p.size }, ts: env.ts });
         scrollBottom();
+      }
+      if (env.type === 'RECALL') {
+        const id = env.payload?.id;
+        const m = messages.value.find(x => x.id === id);
+        if (m) { m.recalled = 1; m.content = ''; }
+        showToast('对方撤回了一条消息');
+      }
+      if (env.type === 'REACTION') {
+        const id = env.payload?.messageId;
+        applyReactionLocal(id, env.payload.emoji, env.payload.added, env.payload.stats);
       }
     }
 
@@ -1044,10 +1321,12 @@ createApp({
       showHistory, history, showHistoryDetail, historyDetailSession, historyMessages,
       showTrade, tradeForm, waitInfo,
       showEmoji, emojiTab, emojiList, uploading, uploadFileName, window,
+      replyTo, showReactionPickerFor, myReactions, toast,
       statusText, statusClass,
       silentLogin, sendText, quickQuery, transferToAgent, customerHangup,
       openTrade, submitTrade, openHistory, viewHistory,
       toggleEmoji, insertEmoji, uploadFile, fileEmoji, formatSize,
+      copyMessage, startReply, toggleReactionPicker, reactTo, hasReacted, canRecall, recallMessage, scrollToMessage,
       avatarEmoji, avatarClass, roleLabel, statusLabel, statusBadge, formatTime
     };
   }
