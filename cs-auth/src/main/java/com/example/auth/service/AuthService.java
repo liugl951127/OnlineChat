@@ -215,6 +215,10 @@ public class AuthService {
 
     // ==================== 通用 ====================
 
+    public Map<String, Object> buildTokenResponse(WechatUser u, String channel) {
+        return tokenResponse(u, channel);
+    }
+
     private Map<String, Object> tokenResponse(WechatUser u, String channel) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", "CUSTOMER");

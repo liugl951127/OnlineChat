@@ -1,0 +1,105 @@
+<!-- pages/kyc/kyc.wxml -->
+<view class="kyc-page">
+  <view class="header">
+    <view class="title">🔐 实名认证</view>
+    <view class="subtitle" wx:if="{{application}}">
+      状态：{{application.status}} | 单号：{{application.applicationNo}}
+    </view>
+  </view>
+
+  <view class="steps">
+    <view wx:for="{{steps}}" wx:key="*this"
+          class="step {{currentStep >= index ? 'active' : ''}} {{currentStep === index ? 'current' : ''}}">
+      <view class="step-num">{{index + 1}}</view>
+      <view class="step-title">{{item.title}}</view>
+    </view>
+  </view>
+
+  <!-- 0. 创建 -->
+  <view wx:if="{{currentStep === 0}}" class="step-panel">
+    <view class="panel-title">准备开始 KYC 认证</view>
+    <view class="panel-tip">为保障资金安全，监管要求所有客户完成 KYC 认证</view>
+    <button class="primary-btn" bindtap="stepCreate">开始认证</button>
+  </view>
+
+  <!-- 1. 身份证 OCR -->
+  <view wx:if="{{currentStep === 1}}" class="step-panel">
+    <view class="panel-title">上传身份证</view>
+    <view class="upload-row">
+      <view>身份证正面</view>
+      <button size="mini" bindtap="uploadFront">{{idCardForm.frontImgUrl ? '✓ 已上传' : '点击上传'}}</button>
+    </view>
+    <view class="upload-row">
+      <view>身份证反面</view>
+      <button size="mini" bindtap="uploadBack">{{idCardForm.backImgUrl ? '✓ 已上传' : '点击上传'}}</button>
+    </view>
+    <button class="primary-btn" bindtap="stepUploadIdcard">提交 OCR 识别</button>
+  </view>
+
+  <!-- 2. 活体 -->
+  <view wx:if="{{currentStep === 2}}" class="step-panel">
+    <view class="panel-title">活体检测</view>
+    <view class="upload-row">
+      <view>活体照片</view>
+      <button size="mini" bindtap="uploadFace">{{livenessForm.faceImgUrl ? '✓ 已拍照' : '点击拍照'}}</button>
+    </view>
+    <view class="actions-grid">
+      <view wx:for="{{['MOUTH','BLINK','SHAKE','NOD']}}"
+            wx:key="*this"
+            class="action-chip {{livenessForm.actions.indexOf(item) > -1 ? 'selected' : ''}}"
+            data-action="{{item}}"
+            bindtap="toggleAction">
+        {{item === 'MOUTH' ? '张嘴' : item === 'BLINK' ? '眨眼' : item === 'SHAKE' ? '摇头' : '点头'}}
+      </view>
+    </view>
+    <button class="primary-btn" bindtap="stepLiveness">提交活体检测</button>
+  </view>
+
+  <!-- 3. 人脸比对 -->
+  <view wx:if="{{currentStep === 3}}" class="step-panel">
+    <view class="panel-title">人脸比对</view>
+    <view class="panel-tip">系统将自动对比身份证照片与活体照片</view>
+    <button class="primary-btn" bindtap="stepFaceMatch">开始比对</button>
+  </view>
+
+  <!-- 4. 视频双录 -->
+  <view wx:if="{{currentStep === 4}}" class="step-panel">
+    <view class="panel-title">视频双录</view>
+    <view class="statement-list">
+      <view wx:for="{{statements}}" wx:key="code" class="statement-card" data-idx="{{index}}" bindtap="stepSubmitVideo">
+        <view class="statement-title">{{item.title}}（{{item.requiredDurationSec}}秒）</view>
+        <view class="statement-content">{{item.content}}</view>
+      </view>
+    </view>
+    <view class="record-area">
+      <view wx:if="{{!recording && !recorded}}">
+        <button class="record-btn" bindtap="startRecording">🎬 开始录制</button>
+      </view>
+      <view wx:elif="{{recording}}">
+        <button class="record-btn stop" bindtap="stopRecording">⏹ 停止（{{videoDuration}}s）</button>
+        <view class="rec-tip">正在录制中...请清晰朗读</view>
+      </view>
+      <view wx:else>
+        <view class="rec-tip">录制完成（{{videoDuration}}秒）</view>
+        <button class="primary-btn" data-idx="0" bindtap="stepSubmitVideo">提交视频</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 5. 审核 -->
+  <view wx:if="{{currentStep === 5}}" class="step-panel">
+    <view class="panel-title">等待坐席审核</view>
+    <view class="panel-tip">已提交审核，通常 1 个工作日内完成</view>
+    <button wx:if="{{application.status === 'APPROVED'}}" class="primary-btn" bindtap="nextStep">下一步：绑卡</button>
+  </view>
+
+  <!-- 6. 绑卡 -->
+  <view wx:if="{{currentStep === 6}}" class="step-panel">
+    <view class="panel-title">银行卡四要素</view>
+    <input class="input" placeholder="卡号" value="{{bankForm.cardNo}}" bindinput="onCardInput" data-k="cardNo" />
+    <input class="input" placeholder="持卡人姓名" value="{{bankForm.cardName}}" bindinput="onCardInput" data-k="cardName" />
+    <input class="input" placeholder="身份证号" value="{{bankForm.idCardNo}}" bindinput="onCardInput" data-k="idCardNo" />
+    <input class="input" placeholder="预留手机号" value="{{bankForm.mobile}}" bindinput="onCardInput" data-k="mobile" />
+    <button class="primary-btn" bindtap="stepBindCard">提交鉴权</button>
+  </view>
+</view>

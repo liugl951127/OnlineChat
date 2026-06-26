@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.KycRiskStatementMapper">
+
+    <resultMap id="BaseMap" type="com.example.im.domain.KycRiskStatement">
+        <id     property="id"                  column="id"/>
+        <result property="code"                column="code"/>
+        <result property="title"               column="title"/>
+        <result property="content"             column="content"/>
+        <result property="category"            column="category"/>
+        <result property="requiredDurationSec" column="required_duration_sec"/>
+        <result property="status"              column="status"/>
+        <result property="sortOrder"           column="sort_order"/>
+        <result property="createdAt"           column="created_at"/>
+        <result property="updatedAt"           column="updated_at"/>
+    </resultMap>
+
+    <select id="findByStatusOrderBySortOrderAsc" resultMap="BaseMap">
+        SELECT * FROM kyc_risk_statement
+        WHERE status = #{status} AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findByCategoryOrderBySortOrderAsc" resultMap="BaseMap">
+        SELECT * FROM kyc_risk_statement
+        WHERE category = #{category} AND status = 'PUBLISHED' AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findByCode" resultMap="BaseMap">
+        SELECT * FROM kyc_risk_statement
+        WHERE code = #{code} AND (deleted = 0 OR deleted IS NULL) LIMIT 1
+    </select>
+
+</mapper>

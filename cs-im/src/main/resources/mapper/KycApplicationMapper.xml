@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.KycApplicationMapper">
+
+    <resultMap id="BaseMap" type="com.example.im.domain.KycApplication">
+        <id     property="id"                 column="id"/>
+        <result property="applicationNo"      column="application_no"/>
+        <result property="customerId"         column="customer_id"/>
+        <result property="status"             column="status"/>
+        <result property="idCardNo"           column="id_card_no"/>
+        <result property="idCardName"         column="id_card_name"/>
+        <result property="idCardGender"       column="id_card_gender"/>
+        <result property="idCardNation"       column="id_card_nation"/>
+        <result property="idCardBirth"        column="id_card_birth"/>
+        <result property="idCardAddress"      column="id_card_address"/>
+        <result property="idCardIssue"        column="id_card_issue"/>
+        <result property="idCardValidity"     column="id_card_validity"/>
+        <result property="idCardFrontImg"     column="id_card_front_img"/>
+        <result property="idCardBackImg"      column="id_card_back_img"/>
+        <result property="ocrRawJson"         column="ocr_raw_json"/>
+        <result property="faceImgUrl"         column="face_img_url"/>
+        <result property="faceMatchScore"     column="face_match_score"/>
+        <result property="faceMatchPassed"    column="face_match_passed"/>
+        <result property="livenessActions"    column="liveness_actions"/>
+        <result property="livenessScore"      column="liveness_score"/>
+        <result property="livenessPassed"     column="liveness_passed"/>
+        <result property="riskStatementId"    column="risk_statement_id"/>
+        <result property="videoUrl"           column="video_url"/>
+        <result property="videoDurationSec"   column="video_duration_sec"/>
+        <result property="videoRecordedAt"    column="video_recorded_at"/>
+        <result property="auditorUsername"    column="auditor_username"/>
+        <result property="auditScore"         column="audit_score"/>
+        <result property="auditRemark"        column="audit_remark"/>
+        <result property="auditedAt"          column="audited_at"/>
+        <result property="bankCardNo"         column="bank_card_no"/>
+        <result property="bankCardName"       column="bank_card_name"/>
+        <result property="bankCardMobile"     column="bank_card_mobile"/>
+        <result property="bankCardBindAt"     column="bank_card_bind_at"/>
+        <result property="riskLevel"          column="risk_level"/>
+        <result property="blacklistHit"       column="blacklist_hit"/>
+        <result property="createdAt"          column="created_at"/>
+        <result property="updatedAt"          column="updated_at"/>
+        <result property="completedAt"        column="completed_at"/>
+    </resultMap>
+
+    <select id="findByApplicationNo" resultMap="BaseMap">
+        SELECT * FROM kyc_application
+        WHERE application_no = #{applicationNo} AND (deleted = 0 OR deleted IS NULL) LIMIT 1
+    </select>
+
+    <select id="findLatestByCustomerId" resultMap="BaseMap">
+        SELECT * FROM kyc_application
+        WHERE customer_id = #{customerId} AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <select id="findByStatusOrderByIdDesc" resultMap="BaseMap">
+        SELECT * FROM kyc_application
+        WHERE status = #{status} AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY id DESC LIMIT 100
+    </select>
+
+    <select id="findByAuditorUsernameOrderByIdDesc" resultMap="BaseMap">
+        SELECT * FROM kyc_application
+        WHERE auditor_username = #{auditorUsername} AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY id DESC LIMIT 100
+    </select>
+
+</mapper>

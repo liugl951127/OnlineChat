@@ -35,6 +35,7 @@ public class ComplianceService {
     private final FinancialOrderMapper orderMapper;
     private final UserVerifyService userVerifyService; // 调用 cs-auth 验证实名
     private final RiskAssessmentService riskService;
+    private final KycService kycService; // v2.0.0 KYC 校验
 
     /**
      * 执行 4 项检查
@@ -49,12 +50,12 @@ public class ComplianceService {
 
         List<String> rejects = new ArrayList<>();
 
-        // 1) 实名认证
-        if (userVerifyService.isPhoneVerified(customerId)) {
+        // 1) 实名认证（KYC v2.0.0）
+        if (kycService.isCompleted(customerId)) {
             check.setIdentityCheck(1);
         } else {
             check.setIdentityCheck(0);
-            rejects.add("未实名认证");
+            rejects.add("未完成 KYC 实名认证");
         }
 
         // 2) 风险评估

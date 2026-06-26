@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在线客服 - 微信公众号入口</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1677ff 0%, #722ed1 100%);
+      min-height: 100vh; margin: 0; padding: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card {
+      background: #fff; border-radius: 16px; padding: 40px 24px;
+      max-width: 360px; width: 100%; text-align: center;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+    .logo { font-size: 64px; }
+    h1 { font-size: 24px; margin: 16px 0 8px; }
+    .subtitle { font-size: 14px; color: #86909c; margin-bottom: 24px; }
+    .btn {
+      display: block; width: 100%; padding: 14px; margin-bottom: 12px;
+      background: #1677ff; color: #fff; border: none; border-radius: 8px;
+      font-size: 16px; cursor: pointer; text-decoration: none;
+    }
+    .btn-secondary { background: #f5f5f5; color: #595959; }
+    .features { text-align: left; margin-top: 24px; }
+    .feature { padding: 8px 0; font-size: 13px; color: #595959; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">💬</div>
+    <h1>在线客服</h1>
+    <p class="subtitle">微信公众号专属入口</p>
+    <a href="/auth/wx-oa/h5-entry" class="btn">🔐 微信授权登录</a>
+    <button class="btn btn-secondary" onclick="enterAsGuest()">👤 访客模式体验</button>
+    <div class="features">
+      <div class="feature">💬 智能客服 7×24 在线</div>
+      <div class="feature">🎧 人工坐席秒接入</div>
+      <div class="feature">🔐 实名认证 KYC</div>
+      <div class="feature">🛍️ 理财产品购买</div>
+      <div class="feature">🎬 会话视频回放</div>
+    </div>
+  </div>
+  <script>
+    function enterAsGuest() {
+      fetch('/auth/silent', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.code === 0) {
+            const url = '/#/customer?token=' + d.data.token + '&customerId=' + d.data.customerId + '&from=wx-oa-guest';
+            window.location.href = url;
+          } else { alert('登录失败：' + d.message); }
+        })
+        .catch(err => alert('网络错误：' + err));
+    }
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('token')) {
+      window.location.href = '/#/customer?' + url.searchParams.toString();
+    }
+  </script>
+</body>
+</html>

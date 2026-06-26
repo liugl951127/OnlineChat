@@ -32,6 +32,7 @@ public class CsrfFilter implements Filter {
     private static final Set<String> WHITELIST_PATHS = Set.of(
         "/auth/login", "/auth/login-phone", "/auth/register",
         "/auth/admin/login", "/auth/silent",
+        "/auth/wx-mini/login", "/auth/wx-oa/h5-entry",
         "/auth/wechat-oa/callback", "/auth/wechat-work/callback",
         "/auth/github/callback", "/auth/google/callback"
     );

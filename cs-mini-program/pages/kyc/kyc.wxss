@@ -1,0 +1,92 @@
+/* pages/kyc/kyc.wxss */
+.kyc-page { padding: 24rpx; background: #f5f7fa; min-height: 100vh; }
+.header {
+  text-align: center;
+  padding: 32rpx 0;
+}
+.title { font-size: 40rpx; font-weight: 600; }
+.subtitle { font-size: 22rpx; color: #86909c; margin-top: 12rpx; }
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 32rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 16rpx;
+}
+.step {
+  flex: 1 1 28%;
+  text-align: center;
+  padding: 12rpx 4rpx;
+  border-radius: 8rpx;
+  background: #f5f5f5;
+  color: #86909c;
+  font-size: 22rpx;
+}
+.step.active { background: #e6f4ff; color: #1677ff; }
+.step.current { background: #1677ff; color: #fff; }
+.step-num { font-size: 28rpx; font-weight: 600; }
+.step-title { margin-top: 4rpx; }
+.step-panel {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+.panel-title { font-size: 36rpx; font-weight: 500; margin-bottom: 16rpx; }
+.panel-tip { font-size: 26rpx; color: #86909c; margin-bottom: 24rpx; }
+.upload-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20rpx 0; border-bottom: 1rpx solid #f0f0f0;
+  font-size: 28rpx;
+}
+.actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin: 20rpx 0;
+}
+.action-chip {
+  padding: 24rpx;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  text-align: center;
+  font-size: 28rpx;
+}
+.action-chip.selected { background: #1677ff; color: #fff; }
+.statement-list { margin-bottom: 24rpx; }
+.statement-card {
+  padding: 20rpx;
+  border: 2rpx solid #e5e6eb;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+}
+.statement-title { font-size: 28rpx; font-weight: 500; }
+.statement-content { font-size: 24rpx; color: #86909c; margin-top: 8rpx; line-height: 1.5; }
+.record-area { text-align: center; padding: 24rpx 0; }
+.record-btn {
+  background: #1677ff; color: #fff;
+  padding: 24rpx 48rpx;
+  border-radius: 100rpx;
+  font-size: 32rpx;
+}
+.record-btn.stop { background: #f56c6c; }
+.rec-tip { font-size: 24rpx; color: #d46b08; margin-top: 12rpx; }
+.input {
+  display: block;
+  width: 100%;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+.primary-btn {
+  width: 100%;
+  padding: 24rpx;
+  background: #1677ff; color: #fff;
+  border-radius: 100rpx;
+  font-size: 32rpx;
+  margin-top: 16rpx;
+}

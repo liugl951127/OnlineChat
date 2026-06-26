@@ -36,6 +36,7 @@ public class WechatUser {
     private java.time.LocalDateTime lockUntil;
     private String role;
     private Integer status;
+    private String channel;
     private LocalDateTime lastLoginTime;
     private String lastLoginIp;
     private LocalDateTime createdAt;

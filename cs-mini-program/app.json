@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/chat/chat",
+    "pages/kyc/kyc",
+    "pages/login/login"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#1677ff",
+    "navigationBarTitleText": "在线客服",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f7fa"
+  },
+  "tabBar": {
+    "color": "#86909c",
+    "selectedColor": "#1677ff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/chat/chat",
+        "text": "客服"
+      },
+      {
+        "pagePath": "pages/kyc/kyc",
+        "text": "认证"
+      }
+    ]
+  },
+  "requiredPrivateInfos": ["getPhoneNumber"],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于就近推荐坐席"
+    }
+  },
+  "sitemapLocation": "sitemap.json"
+}

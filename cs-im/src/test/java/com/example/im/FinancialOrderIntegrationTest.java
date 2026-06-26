@@ -27,6 +27,7 @@ public class FinancialOrderIntegrationTest {
     @Autowired private FinancialOrderService orderService;
     @Autowired private RiskAssessmentService riskService;
     @Autowired private ProductMapper productMapper;
+    @Autowired private com.example.im.service.KycService kycService;
 
     @Test
     void testListProducts() {
@@ -67,6 +68,9 @@ public class FinancialOrderIntegrationTest {
                 "preference", 1, "ratio", 1);
         riskService.assess("real_test-buyer", answers);
 
+        // v2.0.0: 先完成 KYC
+        ensureKycCompleted("real_test-buyer");
+
         FinancialOrder order = orderService.createOrder(
                 "real_test-buyer", deposit.getProductCode(), 50000.0, "CUSTOMER", null);
         assertEquals("DRAFT", order.getStatus());
@@ -90,5 +94,32 @@ public class FinancialOrderIntegrationTest {
                 .findFirst().orElseThrow();
         assertThrows(RuntimeException.class, () ->
                 orderService.createOrder("c-test-low", p.getProductCode(), 1.0, "CUSTOMER", null));
+    }
+
+    /** 辅助：完成 KYC（Mock 全通过，最多 10 次重试，避开随机失败） */
+    private void ensureKycCompleted(String customerId) {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            if (kycService.isCompleted(customerId)) return;
+            var app = kycService.createApplication(customerId);
+            app = kycService.uploadIdCard(app.getApplicationNo(),
+                    "https://oss.example.com/idcard/front.jpg",
+                    "https://oss.example.com/idcard/back.jpg");
+            if (!"OCR_UPLOADED".equals(app.getStatus())) continue;
+            app = kycService.checkLiveness(app.getApplicationNo(),
+                    "https://oss.example.com/face.jpg",
+                    java.util.Arrays.asList("MOUTH", "BLINK", "SHAKE"));
+            if (!"LIVENESS_PASSED".equals(app.getStatus())) continue;
+            app = kycService.matchFace(app.getApplicationNo());
+            if (!"FACE_MATCHED".equals(app.getStatus())) continue;
+            app = kycService.submitVideo(app.getApplicationNo(), "RS-INVEST-001", "mock", 15);
+            if (!"VIDEO_RECORDED".equals(app.getStatus())) continue;
+            app = kycService.submitForAudit(app.getApplicationNo());
+            app = kycService.approve(app.getApplicationNo(), "test_auditor",
+                    new java.math.BigDecimal("95"), "ok");
+            kycService.bindBankCard(app.getApplicationNo(), "6222021234567890123",
+                    "张三", "110105199001151234", "13800138000");
+            if (kycService.isCompleted(customerId)) return;
+        }
+        throw new RuntimeException("KYC 重试 10 次仍未完成");
     }
 }

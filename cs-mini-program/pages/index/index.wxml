@@ -1,0 +1,45 @@
+<!-- pages/index/index.wxml -->
+<view class="container">
+  <view class="hero">
+    <view class="hero-title">在线客服</view>
+    <view class="hero-subtitle">7×24h 为您服务</view>
+  </view>
+
+  <view class="quick-actions">
+    <view class="action-card" bindtap="onChat">
+      <view class="action-icon">💬</view>
+      <view class="action-name">在线客服</view>
+      <view class="action-desc">智能+人工</view>
+    </view>
+    <view class="action-card" bindtap="onKyc">
+      <view class="action-icon">🔐</view>
+      <view class="action-name">实名认证</view>
+      <view class="action-desc">KYC 认证</view>
+    </view>
+    <view class="action-card" bindtap="onProducts">
+      <view class="action-icon">🛍️</view>
+      <view class="action-name">理财产品</view>
+      <view class="action-desc">保险/理财/基金</view>
+    </view>
+    <view class="action-card" bindtap="onTickets">
+      <view class="action-icon">🎫</view>
+      <view class="action-name">工单</view>
+      <view class="action-desc">投诉建议</view>
+    </view>
+  </view>
+
+  <view class="user-card">
+    <view class="user-info">
+      <image class="avatar" src="/images/avatar-default.png" />
+      <view class="info-text">
+        <view class="info-name">{{userInfo.nickname || '访客'}}</view>
+        <view class="info-id">ID: {{customerId || '未登录'}}</view>
+      </view>
+    </view>
+    <view class="kyc-status">
+      <text wx:if="{{kycCompleted}}" class="status-success">✓ 已认证</text>
+      <text wx:elif="{{kycStatus !== 'NOT_STARTED'}}" class="status-warning">{{kycStatusLabel}}</text>
+      <text wx:else class="status-info">⚠ 未认证</text>
+    </view>
+  </view>
+</view>

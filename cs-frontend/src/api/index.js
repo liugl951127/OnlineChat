@@ -111,6 +111,36 @@ export const replay = {
   setFrameUrl: (messageId, videoUrl) => request.post(`/im/replay/message/${messageId}/frame-url`, { videoUrl })
 }
 
+// ============= KYC（v2.0.0） =============
+export const kyc = {
+  status: () => request.get('/im/kyc/status'),
+  my: () => request.get('/im/kyc/my'),
+  create: () => request.post('/im/kyc/create'),
+  uploadIdcard: data => request.post('/im/kyc/upload-idcard', data),
+  liveness: data => request.post('/im/kyc/liveness', data),
+  faceMatch: () => request.post('/im/kyc/face-match'),
+  submitVideo: data => request.post('/im/kyc/submit-video', data),
+  submitAudit: () => request.post('/im/kyc/submit-audit'),
+  bindCard: data => request.post('/im/kyc/bind-card', data),
+  statements: () => request.get('/im/kyc/statements'),
+  bankCards: () => request.get('/im/kyc/bank-cards'),
+  auditQueue: () => request.get('/im/kyc/audit/queue'),
+  auditDetail: no => request.get(`/im/kyc/audit/${no}`),
+  approve: (no, data) => request.post(`/im/kyc/audit/${no}/approve`, data),
+  reject: (no, reason) => request.post(`/im/kyc/audit/${no}/reject`, { reason })
+}
+
+// ============= 微信小程序登录（v2.0.0） =============
+export const wxMini = {
+  login: (jsCode, encryptedData, iv) =>
+    request.post('/auth/wx-mini/login', { jsCode, encryptedData, iv })
+}
+
+// ============= 微信公众号 H5（v2.0.0） =============
+export const wxOaH5 = {
+  // 直接跳转到 /auth/wx-oa/h5-entry 即可
+}
+
 // ============= Admin =============
 export const admin = {
   users: params => request.get('/admin/users', { params }),

@@ -1,6 +1,7 @@
 package com.example.auth.controller;
 
 import com.example.auth.service.AuthService;
+import com.example.auth.service.WxMiniService;
 import com.example.common.ApiException;
 import com.example.common.ApiResponse;
 import com.example.common.security.CsrfTokenIssuer;
@@ -24,6 +25,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final CsrfTokenIssuer csrfIssuer;
+    private final WxMiniService wxMiniService;
 
     // ============ 客户：静默 / OAuth ============
     @PostMapping("/silent-login")
@@ -160,6 +162,73 @@ public class AuthController {
     public ApiResponse<Map<String, Object>> verifyPhone(@RequestParam String customerId) {
         boolean verified = authService.verifyPhone(customerId);
         return ApiResponse.ok(Map.of("customerId", customerId, "verified", verified));
+    }
+
+    // ============ v2.0.0 微信小程序 / 公众号 H5 ============
+
+    /**
+     * 微信小程序登录（POST /auth/wx-mini/login）
+     *
+     * <p>小程序前端：
+     * <pre>
+     *   wx.login({
+     *     success: res => request.post('/auth/wx-mini/login', {
+     *       jsCode: res.code,
+     *       encryptedData: '...',
+     *       iv: '...'
+     *     })
+     *   })
+     * </pre>
+     */
+    @PostMapping("/wx-mini/login")
+    public ApiResponse<Map<String, Object>> wxMiniLogin(@RequestBody WxMiniLoginReq req) {
+        if (req.getJsCode() == null || req.getJsCode().isBlank()) {
+            throw new ApiException(400, "jsCode 必填");
+        }
+        return ApiResponse.ok(wxMiniService.login(req.getJsCode(), req.getEncryptedData(), req.getIv()));
+    }
+
+    /**
+     * 微信公众号 H5 入口（GET /auth/wx-oa/h5-entry）
+     *
+     * <p>公众号菜单配置跳转到此 URL，客户点击后：
+     * <ol>
+     *   <li>OAuth 授权拿到 openid + 用户信息</li>
+     *   <li>重定向到 /#/customer?token=xxx&customerId=xxx（内嵌客服）</li>
+     * </ol>
+     */
+    @GetMapping("/wx-oa/h5-entry")
+    public void wxOaH5Entry(@RequestParam(required = false) String code,
+                              @RequestParam(required = false) String state,
+                              HttpServletResponse resp) throws IOException {
+        // 复用现有的 OA callback 逻辑
+        if (code != null) {
+            try {
+                Map<String, Object> token = authService.oaCallback(code);
+                String redirectUrl = "/#/customer?token=" + token.get("token")
+                        + "&customerId=" + token.get("customerId")
+                        + "&from=wx-oa";
+                resp.sendRedirect(redirectUrl);
+                return;
+            } catch (Exception e) {
+                resp.sendRedirect("/#/login?error=" + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8));
+                return;
+            }
+        }
+        // 没有 code → 跳转到 OAuth 授权页
+        String authorizeUrl = authService.oaAuthorizeUrl("/auth/wx-oa/h5-entry", UUID.randomUUID().toString());
+        resp.sendRedirect(authorizeUrl);
+    }
+
+    /** 小程序登录请求体 */
+    @Data
+    public static class WxMiniLoginReq {
+        /** wx.login() 返回的临时凭证 */
+        private String jsCode;
+        /** 加密数据（手机号，可选） */
+        private String encryptedData;
+        /** 初始向量 */
+        private String iv;
     }
 
     private static String clientIp(HttpServletRequest req) {

@@ -1,0 +1,37 @@
+/* pages/index/index.wxss */
+.container { padding: 24rpx; }
+.hero { text-align: center; padding: 48rpx 0; }
+.hero-title { font-size: 56rpx; font-weight: 600; color: #1677ff; }
+.hero-subtitle { font-size: 28rpx; color: #86909c; margin-top: 12rpx; }
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24rpx;
+  margin-bottom: 32rpx;
+}
+.action-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+.action-icon { font-size: 64rpx; }
+.action-name { font-size: 32rpx; font-weight: 500; margin-top: 12rpx; }
+.action-desc { font-size: 24rpx; color: #86909c; margin-top: 4rpx; }
+.user-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+.user-info { display: flex; align-items: center; gap: 16rpx; }
+.avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #f0f0f0; }
+.info-name { font-size: 30rpx; font-weight: 500; }
+.info-id { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
+.status-success { color: #389e0d; font-size: 26rpx; }
+.status-warning { color: #d46b08; font-size: 26rpx; }
+.status-info { color: #1677ff; font-size: 26rpx; }

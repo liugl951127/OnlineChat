@@ -1,12 +1,13 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { im, robot, ticket, faq as faqApi, replay } from '@/api'
+import { im, robot, ticket, faq as faqApi, replay, kyc as kycApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { formatTime, safeText, debounce } from '@/utils'
 import KnowledgeBase from '@/components/KnowledgeBase.vue'
 import TicketPanel from '@/components/TicketPanel.vue'
 import ReplayPanel from '@/components/ReplayPanel.vue'
+import KycFlow from '@/components/KycFlow.vue'
 
 const user = useUserStore()
 
@@ -31,11 +32,13 @@ const statusTip = ref('正在加载...')
 const offlineCount = ref(0)
 const offlineMsgs = ref([])
 
-// ============ 面板开关（KB / 工单 / 回放） ============
+// ============ 面板开关（KB / 工单 / 回放 / KYC） ============
 const showKB = ref(false)
 const showTickets = ref(false)
 const showReplay = ref(false)
+const showKyc = ref(false)
 const replaySessionId = ref(null)
+const kycStatus = ref('NOT_STARTED')
 
 // ============ 快捷回复 ============
 const quickReplies = [
@@ -132,6 +135,11 @@ async function loadSession() {
   } catch (e) {
     ElMessage.error('加载会话失败')
   }
+  // 同时加载 KYC 状态
+  try {
+    const { data: kycData } = await kycApi.status()
+    kycStatus.value = kycData.status
+  } catch {}
 }
 
 function updateStatusFromSession(s) {
@@ -340,6 +348,10 @@ async function openReplay() {
   showReplay.value = true
 }
 function closeReplay() { showReplay.value = false }
+
+function onKycCompleted() {
+  kycStatus.value = 'COMPLETED'
+}
 </script>
 
 <template>
@@ -355,6 +367,9 @@ function closeReplay() { showReplay.value = false }
         <el-button size="small" text @click="openKB">📚 知识库</el-button>
         <el-button size="small" text @click="openTickets">🎫 工单</el-button>
         <el-button size="small" text @click="openReplay">🎬 回放</el-button>
+        <el-button size="small" text @click="openKyc">
+          {{ kycCompleted ? '✓ 已认证' : '🔐 实名认证' }}
+        </el-button>
       </div>
 
       <div class="status">
@@ -387,6 +402,24 @@ function closeReplay() { showReplay.value = false }
       >
         排队中...
       </el-button>
+    </div>
+
+    <!-- KYC 状态提示 -->
+    <div v-if="kycStatus !== 'NOT_STARTED' && kycStatus !== 'COMPLETED'" class="kyc-bar">
+      <span class="kyc-icon">🔐</span>
+      <span class="kyc-text">实名认证状态：<b>{{ kycStatusLabel(kycStatus) }}</b></span>
+      <el-button v-if="kycStatus !== 'AUDITING'" type="primary" size="small" round @click="openKyc">继续认证</el-button>
+      <el-button v-else type="info" size="small" round disabled>审核中</el-button>
+    </div>
+    <div v-if="kycCompleted" class="kyc-bar completed">
+      <span class="kyc-icon">✓</span>
+      <span class="kyc-text">已完成实名认证（可购买金融产品）</span>
+      <el-button size="small" round @click="openKyc">查看详情</el-button>
+    </div>
+    <div v-if="kycStatus === 'NOT_STARTED'" class="kyc-bar warning">
+      <span class="kyc-icon">⚠</span>
+      <span class="kyc-text">购买金融产品需先完成实名认证</span>
+      <el-button type="warning" size="small" round @click="openKyc">开始认证</el-button>
     </div>
 
     <div class="quick-bar">
@@ -467,6 +500,11 @@ function closeReplay() { showReplay.value = false }
     <el-dialog v-model="showReplay" title="🎬 视频回溯" width="800px" :show-close="true" @close="closeReplay">
       <ReplayPanel v-if="replaySessionId" :session-id="replaySessionId" @close="closeReplay" />
     </el-dialog>
+
+    <!-- KYC 实名认证弹窗 -->
+    <el-dialog v-model="showKyc" title="🔐 实名认证 (KYC)" width="900px" :show-close="true" @close="closeKyc">
+      <KycFlow :customer-id="user.profile?.id" @close="closeKyc" @completed="onKycCompleted" />
+    </el-dialog>
   </div>
 </template>
 
@@ -541,6 +579,19 @@ function closeReplay() { showReplay.value = false }
     color: #86909c;
     border-bottom-color: #d9d9d9;
   }
+}
+
+.kyc-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 20px;
+  background: #fff7e6;
+  color: #d46b08;
+  font-size: 13px;
+  border-bottom: 1px solid #ffd591;
+  .kyc-icon { font-size: 18px; }
+  .kyc-text { flex: 1; }
+  &.completed { background: #f6ffed; color: #389e0d; border-bottom-color: #b7eb8f; }
+  &.warning { background: #fffbe6; color: #d46b08; }
 }
 
 .quick-bar {

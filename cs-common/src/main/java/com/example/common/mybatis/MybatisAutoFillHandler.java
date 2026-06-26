@@ -17,6 +17,8 @@ public class MybatisAutoFillHandler implements MetaObjectHandler {
         LocalDateTime now = LocalDateTime.now();
         this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
+        // KYC 视频录制时间
+        this.strictInsertFill(metaObject, "recordedAt", LocalDateTime.class, now);
     }
 
     @Override

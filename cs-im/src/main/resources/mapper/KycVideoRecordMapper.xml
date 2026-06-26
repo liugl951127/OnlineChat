@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.KycVideoRecordMapper">
+
+    <resultMap id="BaseMap" type="com.example.im.domain.KycVideoRecord">
+        <id     property="id"             column="id"/>
+        <result property="applicationId"  column="application_id"/>
+        <result property="statementId"    column="statement_id"/>
+        <result property="segmentNo"      column="segment_no"/>
+        <result property="videoUrl"       column="video_url"/>
+        <result property="durationSec"    column="duration_sec"/>
+        <result property="fileSizeKb"     column="file_size_kb"/>
+        <result property="checksum"       column="checksum"/>
+        <result property="recordedAt"     column="recorded_at"/>
+    </resultMap>
+
+    <select id="findByApplicationId" resultMap="BaseMap">
+        SELECT * FROM kyc_video_record
+        WHERE application_id = #{applicationId} AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY segment_no ASC
+    </select>
+
+</mapper>

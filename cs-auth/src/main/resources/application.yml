@@ -123,3 +123,17 @@ spring:
       filters: stat,wall
       stat-view-servlet:
         enabled: false
+wechat:
+  oa:
+    app-id: ${WX_OA_APP_ID:demo-app-id}
+    app-secret: ${WX_OA_APP_SECRET:demo-app-secret}
+    mock: ${WX_OA_MOCK:true}
+  work:
+    corp-id: ${WX_WORK_CORP_ID:demo-corp-id}
+    corp-secret: ${WX_WORK_CORP_SECRET:demo-corp-secret}
+    agent-id: ${WX_WORK_AGENT_ID:1000001}
+    mock: ${WX_WORK_MOCK:true}
+  mini:
+    app-id: ${WX_MINI_APP_ID:demo-mini-app-id}
+    app-secret: ${WX_MINI_APP_SECRET:demo-mini-app-secret}
+    mock: ${WX_MINI_MOCK:true}
