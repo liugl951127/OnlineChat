@@ -35,7 +35,8 @@ public class ImMessageConsumer {
     )
     public void onAgentMessage(ChatMessageEvent event, Acknowledgment ack) {
         try {
-            WsEnvelope env = new WsEnvelope("MESSAGE", event.getSessionId(),
+            Long sessionId = parseSessionId(event.getSessionId());
+            WsEnvelope env = new WsEnvelope("MESSAGE", sessionId,
                 event.getFromRole(), event.getFromId(),
                 event.getContent(), event, event.getTimestamp(), null);
             broker.convertAndSend("/topic/customer/" + event.getToId(), env);
@@ -54,7 +55,8 @@ public class ImMessageConsumer {
     )
     public void onCustomerMessage(ChatMessageEvent event, Acknowledgment ack) {
         try {
-            WsEnvelope env = new WsEnvelope("MESSAGE", event.getSessionId(),
+            Long sessionId = parseSessionId(event.getSessionId());
+            WsEnvelope env = new WsEnvelope("MESSAGE", sessionId,
                 event.getFromRole(), event.getFromId(),
                 event.getContent(), event, event.getTimestamp(), null);
             if (event.getToId() != null) {
@@ -75,7 +77,8 @@ public class ImMessageConsumer {
     )
     public void onSystemMessage(ChatMessageEvent event, Acknowledgment ack) {
         try {
-            WsEnvelope env = new WsEnvelope("SYSTEM", event.getSessionId(),
+            Long sessionId = parseSessionId(event.getSessionId());
+            WsEnvelope env = new WsEnvelope("SYSTEM", sessionId,
                 "SYSTEM", "system",
                 event.getContent(), event, event.getTimestamp(), null);
             if (event.getToId() != null) {
@@ -87,5 +90,11 @@ public class ImMessageConsumer {
             log.error("[IM-Kafka] system msg consume failed", e);
             throw e;
         }
+    }
+
+    /** 兼容 String / Long sessionId */
+    private Long parseSessionId(String s) {
+        if (s == null) return null;
+        try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
     }
 }

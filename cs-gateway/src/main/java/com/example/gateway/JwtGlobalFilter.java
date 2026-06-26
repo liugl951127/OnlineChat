@@ -48,7 +48,7 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
         String path = req.getURI().getPath();
 
         // OPTIONS 放行（CORS）
-        if ("OPTIONS".equalsIgnoreCase(req.getMethodValue())) return chain.filter(exchange);
+        if ("OPTIONS".equalsIgnoreCase(req.getMethod().name())) return chain.filter(exchange);
 
         // 白名单放行
         for (String w : WHITE_LIST) if (path.startsWith(w)) return chain.filter(exchange);

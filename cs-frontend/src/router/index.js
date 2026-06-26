@@ -7,7 +7,8 @@ const routes = [
   { path: '/customer', name: 'customer', component: () => import('@/views/Customer.vue'), meta: { title: '客户咨询', role: 'CUSTOMER' } },
   { path: '/agent', name: 'agent', component: () => import('@/views/Agent.vue'), meta: { title: '坐席工作台', role: 'AGENT' } },
   { path: '/admin', name: 'admin', component: () => import('@/views/Admin.vue'), meta: { title: '后管系统', role: 'ADMIN' } },
-  { path: '/:pathMatch(.*)*', redirect: '/' }
+  { path: '/404', name: 'notfound', component: () => import('@/views/NotFound.vue'), meta: { title: '页面未找到', public: true } },
+  { path: '/:pathMatch(.*)*', redirect: '/404' }
 ]
 
 const router = createRouter({

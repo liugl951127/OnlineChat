@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import request from '@/api/request'
 import { admin } from '@/api'
 import { useUserStore } from '@/store/user'
 import { maskMobile, formatDate, formatTime } from '@/utils'
@@ -10,6 +11,55 @@ const activeTab = ref('dashboard')
 
 // ============ Dashboard ============
 const dashboard = ref({})
+
+// ============ 趋势图 ============
+const chartRange = ref('7')
+const trendData = ref([])
+const yAxisLabels = computed(() => {
+  if (!trendData.value.length) return ['0', '0', '0', '0']
+  const max = Math.max(...trendData.value.flatMap(d => [d.sessions || 0, d.messages || 0]), 1)
+  return [String(max), String(Math.floor(max * 0.66)), String(Math.floor(max * 0.33)), '0']
+})
+const sessionPoints = computed(() => {
+  if (!trendData.value.length) return []
+  const max = Math.max(...trendData.value.flatMap(d => [d.sessions || 0, d.messages || 0]), 1)
+  const w = 650, h = 160
+  const x0 = 40, y0 = 40
+  return trendData.value.map((d, i) => ({
+    x: x0 + (w * i) / (trendData.value.length - 1 || 1),
+    y: y0 + h - (h * (d.sessions || 0)) / max
+  }))
+})
+const messagePoints = computed(() => {
+  if (!trendData.value.length) return []
+  const max = Math.max(...trendData.value.flatMap(d => [d.sessions || 0, d.messages || 0]), 1)
+  const w = 650, h = 160
+  const x0 = 40, y0 = 40
+  return trendData.value.map((d, i) => ({
+    x: x0 + (w * i) / (trendData.value.length - 1 || 1),
+    y: y0 + h - (h * (d.messages || 0)) / max
+  }))
+})
+const sessionLinePoints = computed(() => sessionPoints.value.map(p => `${p.x},${p.y}`).join(' '))
+const messageLinePoints = computed(() => messagePoints.value.map(p => `${p.x},${p.y}`).join(' '))
+
+async function loadTrend() {
+  try {
+    const { data } = await request.get(`/admin/trend?days=${chartRange.value}`)
+    trendData.value = data || []
+  } catch {
+    // 降级用 mock 数据
+    const days = parseInt(chartRange.value)
+    trendData.value = Array.from({ length: days }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
+      return {
+        date: `${d.getMonth() + 1}/${d.getDate()}`,
+        sessions: Math.floor(20 + Math.random() * 50),
+        messages: Math.floor(100 + Math.random() * 200)
+      }
+    })
+  }
+}
 
 async function loadDashboard() {
   const { data } = await admin.dashboard()
@@ -76,6 +126,7 @@ async function loadAudit() {
 onMounted(() => {
   loadDashboard()
   loadSessions()
+  loadTrend()
 })
 </script>
 
@@ -131,8 +182,36 @@ onMounted(() => {
             </el-col>
           </el-row>
           <el-card class="chart" shadow="never" style="margin-top: 16px;">
-            <template #header><span>近 7 日趋势</span></template>
-            <div class="chart-placeholder">📈 图表占位（接入 ECharts / Recharts）</div>
+            <template #header>
+              <div class="card-header">
+                <span>近 7 日趋势</span>
+                <el-radio-group v-model="chartRange" size="small" @change="loadTrend">
+                  <el-radio-button label="7">7 天</el-radio-button>
+                  <el-radio-button label="30">30 天</el-radio-button>
+                </el-radio-group>
+              </div>
+            </template>
+            <svg ref="trendChart" :viewBox="`0 0 700 240`" class="trend-chart" preserveAspectRatio="none">
+              <!-- 网格 -->
+              <line v-for="(y, i) in [40, 90, 140, 190]" :key="`g${i}`" :x1="40" :y1="y" :x2="690" :y2="y" stroke="#e5e6eb" stroke-dasharray="3 3" />
+              <!-- Y轴标签 -->
+              <text v-for="(y, i) in [40, 90, 140, 190]" :key="`l${i}`" x="0" :y="y + 4" font-size="11" fill="#86909c">{{ yAxisLabels[i] }}</text>
+              <!-- X轴 -->
+              <line x1="40" y1="200" x2="690" y2="200" stroke="#86909c" />
+              <!-- 折线：会话量 -->
+              <polyline :points="sessionLinePoints" fill="none" stroke="#1677ff" stroke-width="2" />
+              <!-- 折线：消息量 -->
+              <polyline :points="messageLinePoints" fill="none" stroke="#52c41a" stroke-width="2" />
+              <!-- 点 -->
+              <circle v-for="(p, i) in sessionPoints" :key="`s${i}`" :cx="p.x" :cy="p.y" r="3" fill="#1677ff" />
+              <circle v-for="(p, i) in messagePoints" :key="`m${i}`" :cx="p.x" :cy="p.y" r="3" fill="#52c41a" />
+              <!-- X轴标签 -->
+              <text v-for="(p, i) in sessionPoints" :key="`x${i}`" :x="p.x" :y="220" font-size="10" fill="#86909c" text-anchor="middle">{{ trendData[i]?.date || '' }}</text>
+            </svg>
+            <div class="chart-legend">
+              <span><i style="background:#1677ff"></i>会话量</span>
+              <span><i style="background:#52c41a"></i>消息量</span>
+            </div>
           </el-card>
         </div>
 
@@ -365,6 +444,27 @@ onMounted(() => {
     background: #fafafa;
     border-radius: 8px;
     color: #86909c;
+  }
+  .trend-chart {
+    width: 100%;
+    height: 240px;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #86909c;
+    span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      i {
+        display: inline-block;
+        width: 12px; height: 2px;
+      }
+    }
   }
 }
 

@@ -80,7 +80,7 @@ public class OfflinePushService {
         if (messages == null || messages.isEmpty()) return;
 
         for (var msg : messages) {
-            Map<String, String> body = msg.getValue();
+            Map<String, String> body = (Map<String, String>) (Map) msg.getValue();
             String userId = body.get("userId");
             if (isOnline(userId)) {
                 redis.opsForStream().delete("offline-msg", msg.getId());

@@ -13,7 +13,7 @@
 
     <groupId>com.example</groupId>
     <artifactId>online-chat</artifactId>
-    <version>1.6.0</version>
+    <version>1.7.1</version>
     <packaging>pom</packaging>
     <name>online-chat</name>
     <description>Online Chat (Spring Cloud + Vue 3 + WeChat Work + WeChat OA)</description>
@@ -38,7 +38,7 @@
         <mysql.version>8.4.0</mysql.version>
         <druid.version>1.2.23</druid.version>
         <flyway.version>10.10.0</flyway.version>
-        <kafka.version>3.7.0</kafka.version>
+        <spring-kafka.version>3.1.4</spring-kafka.version>
     </properties>
 
     <dependencyManagement>
@@ -85,12 +85,7 @@
             <dependency>
                 <groupId>org.springframework.kafka</groupId>
                 <artifactId>spring-kafka</artifactId>
-                <version>${kafka.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka-clients</artifactId>
-                <version>${kafka.version}</version>
+                <version>${spring-kafka.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
