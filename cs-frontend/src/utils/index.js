@@ -1,3 +1,13 @@
+// XSS 过滤（重新导出方便页面调用）
+import DOMPurify from 'dompurify'
+export function safeText(html) {
+  if (typeof html !== 'string') return html
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br', 'p', 'span'],
+    ALLOWED_ATTR: []
+  })
+}
+
 // 防抖
 export function debounce(fn, delay = 300) {
   let timer = null
