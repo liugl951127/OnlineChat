@@ -4,95 +4,407 @@
   <meta charset="UTF-8">
   <title>坐席工作台</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/shared/design-system.css">
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; margin: 0; }
-    .layout { display: flex; height: 100vh; }
-    .sidebar { width: 280px; background: #001529; color: #fff; padding: 16px; overflow-y: auto; }
-    .sidebar h2 { margin: 0 0 12px; font-size: 16px; }
-    .queue-item { background: #1f3247; padding: 12px; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
-    .queue-item .name { font-weight: 600; margin-bottom: 4px; }
-    .queue-item .meta { font-size: 12px; color: #8c9aa8; }
-    .queue-item .btn { margin-top: 8px; padding: 6px 12px; background: #1677ff; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
-    .main { flex: 1; display: flex; flex-direction: column; }
-    .topbar { height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
-    .topbar .who { font-weight: 600; }
-    .topbar .badge { background: #52c41a; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-left: 8px; }
-    .topbar button { padding: 7px 14px; background: #1677ff; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 6px; }
-    .topbar button.danger { background: #ff4d4f; }
-    .chat-area { flex: 1; overflow-y: auto; padding: 20px; background: #f0f2f5; }
-    .msg { display: flex; margin-bottom: 12px; }
-    .msg .bubble { padding: 8px 12px; border-radius: 10px; max-width: 70%; font-size: 14px; line-height: 1.5; }
-    .msg .meta { font-size: 11px; color: #999; margin-top: 4px; }
-    .msg.me { justify-content: flex-end; }
-    .msg.me .bubble { background: #1677ff; color: #fff; }
-    .msg.other .bubble { background: #fff; border: 1px solid #e6ebf2; }
-    .msg.robot .bubble { background: #f9f0ff; border: 1px solid #d3adf7; }
+    .agent-app { display: flex; min-height: 100vh; background: var(--color-bg); }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: linear-gradient(180deg, #001529 0%, #002140 100%);
+      color: var(--color-text-inverse);
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
+    }
+    @media (max-width: 768px) {
+      .sidebar { width: 100%; display: none; }
+      .agent-app.mobile-show-queue .sidebar { display: flex; }
+      .agent-app.mobile-show-queue .main { display: none; }
+    }
+    .sidebar-header {
+      padding: var(--space-5);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar-header h1 {
+      margin: 0 0 var(--space-1);
+      font-size: var(--font-lg);
+      font-weight: var(--font-semibold);
+      display: flex; align-items: center; gap: var(--space-2);
+    }
+    .sidebar-header .subtitle {
+      font-size: var(--font-xs);
+      color: rgba(255,255,255,0.5);
+    }
+    .sidebar-body {
+      flex: 1; overflow-y: auto; padding: var(--space-4);
+    }
+    .sidebar-section-title {
+      font-size: var(--font-xs);
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0 0 var(--space-3);
+      padding: 0 var(--space-2);
+    }
+
+    .queue-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-2);
+      transition: all var(--duration-fast) var(--ease-out);
+      animation: fadeInUp var(--duration-base) var(--ease-out);
+    }
+    .queue-card:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: var(--color-primary);
+      transform: translateX(2px);
+    }
+    .queue-card .qc-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--space-2);
+    }
+    .queue-card .qc-id { font-size: var(--font-sm); font-weight: var(--font-semibold); }
+    .queue-card .qc-id .badge {
+      margin-left: var(--space-2);
+      padding: 1px 8px;
+      font-size: 10px;
+      background: var(--color-warning);
+      color: #fff;
+    }
+    .queue-card .qc-meta {
+      font-size: var(--font-xs);
+      color: rgba(255,255,255,0.5);
+      margin-bottom: var(--space-2);
+    }
+    .queue-card .qc-meta span { margin-right: var(--space-3); }
+    .queue-card .qc-btn {
+      width: 100%;
+      padding: 8px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, #4096ff 100%);
+      color: var(--color-text-inverse);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-sm);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .queue-card .qc-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(22,119,255,0.4); }
+
+    .queue-empty {
+      text-align: center;
+      padding: var(--space-8) var(--space-4);
+      color: rgba(255,255,255,0.4);
+    }
+    .queue-empty .icon { font-size: 48px; margin-bottom: var(--space-3); opacity: 0.5; }
+    .queue-empty .text { font-size: var(--font-sm); }
+
+    /* Main */
+    .main {
+      flex: 1;
+      display: flex; flex-direction: column;
+      background: var(--color-bg-elevated);
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 64px;
+      padding: 0 var(--space-5);
+      background: var(--color-bg-elevated);
+      border-bottom: 1px solid var(--color-divider);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .topbar .left { display: flex; align-items: center; gap: var(--space-3); }
+    .topbar .mobile-back {
+      display: none;
+      width: 36px; height: 36px;
+      background: transparent;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      color: var(--color-text);
+    }
+    @media (max-width: 768px) {
+      .topbar .mobile-back { display: flex; align-items: center; justify-content: center; }
+    }
+    .topbar .who {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-weight: var(--font-semibold);
+    }
+    .topbar .who-avatar {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, #4096ff 100%);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-inverse);
+      font-weight: var(--font-semibold);
+    }
+    .topbar .right { display: flex; gap: var(--space-2); }
+
+    .chat-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+    .chat-area {
+      flex: 1;
+      padding: var(--space-5) var(--space-6);
+      overflow-y: auto;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(22,119,255,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(114,46,209,0.03) 0%, transparent 50%),
+        var(--color-bg);
+    }
+    .msg {
+      display: flex; gap: var(--space-3);
+      margin-bottom: var(--space-4);
+      animation: fadeIn var(--duration-base) var(--ease-out);
+    }
+    .msg.me { flex-direction: row-reverse; }
+    .msg .msg-avatar {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .msg .msg-avatar.cust { background: var(--color-primary-light); }
+    .msg .msg-avatar.agt { background: #fff1f0; }
+    .msg .msg-avatar.bot { background: #f9f0ff; }
+    .msg .msg-avatar.sys { background: var(--color-bg-hover); }
+
+    .msg .msg-body { max-width: calc(100% - 56px); display: flex; flex-direction: column; }
+    .msg.me .msg-body { align-items: flex-end; }
+    .msg .msg-name {
+      font-size: var(--font-xs);
+      color: var(--color-text-tertiary);
+      margin: 0 var(--space-2) 4px;
+    }
+    .msg .bubble {
+      padding: 10px var(--space-4);
+      border-radius: var(--radius-lg);
+      max-width: 70%;
+      word-break: break-word;
+      line-height: var(--leading-relaxed);
+      font-size: var(--font-base);
+      box-shadow: var(--shadow-sm);
+    }
+    .msg.me .bubble {
+      background: linear-gradient(135deg, var(--color-primary) 0%, #4096ff 100%);
+      color: var(--color-text-inverse);
+      border-bottom-right-radius: 4px;
+    }
+    .msg.other .bubble {
+      background: var(--color-bg-elevated);
+      color: var(--color-text);
+      border: 1px solid var(--color-border-light);
+      border-bottom-left-radius: 4px;
+    }
+    .msg.robot .bubble {
+      background: #faf5ff;
+      color: var(--color-text);
+      border: 1px solid #e9d5ff;
+    }
     .msg.system { justify-content: center; }
-    .msg.system .bubble { background: transparent; color: #8c8c8c; font-size: 12px; border: none; }
-    .rich-card { background: #fff; border: 1px solid #e6ebf2; border-radius: 10px; padding: 12px; max-width: 70%; }
-    .rich-card .title { font-weight: 600; margin-bottom: 6px; }
-    .rich-card .desc { font-size: 13px; color: #555; }
-    .composer { background: #fff; padding: 14px 20px; border-top: 1px solid #e8e8e8; display: flex; gap: 10px; }
-    .composer input { flex: 1; padding: 11px 14px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; }
-    .composer button { padding: 0 22px; background: #1677ff; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
-    .no-session { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
-    .login-box { max-width: 380px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
-    .login-box h2 { margin: 0 0 20px; text-align: center; }
-    .login-box input { width: 100%; padding: 11px; margin-bottom: 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; }
-    .login-box button { width: 100%; padding: 12px; background: #1677ff; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; }
+    .msg.system .bubble {
+      background: transparent;
+      color: var(--color-text-tertiary);
+      font-size: var(--font-xs);
+      box-shadow: none;
+    }
+
+    .rich-card {
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border-light);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      max-width: 70%;
+      box-shadow: var(--shadow-sm);
+    }
+    .rich-card.product { border-color: #ffd591; background: linear-gradient(135deg, #fffbe6 0%, #fff7e6 100%); }
+    .rich-card .rc-title { font-weight: var(--font-semibold); margin-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-2); }
+    .rich-card .rc-rate { font-size: var(--font-3xl); font-weight: var(--font-bold); color: var(--color-warning); }
+    .rich-card .rc-rate small { font-size: var(--font-base); margin-left: 4px; }
+    .rich-card .rc-desc { font-size: var(--font-sm); color: var(--color-text-secondary); margin-top: var(--space-2); }
+
+    .no-session {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--color-text-tertiary);
+      gap: var(--space-3);
+      background:
+        radial-gradient(circle at 50% 40%, rgba(22,119,255,0.05) 0%, transparent 60%),
+        var(--color-bg);
+    }
+    .no-session .icon {
+      font-size: 72px;
+      opacity: 0.3;
+      animation: pulse 3s infinite;
+    }
+    .no-session .text { font-size: var(--font-base); }
+
+    .composer {
+      padding: var(--space-4) var(--space-5);
+      background: var(--color-bg-elevated);
+      border-top: 1px solid var(--color-divider);
+      display: flex; gap: var(--space-3);
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .composer textarea {
+      flex: 1;
+      padding: 10px var(--space-4);
+      font-size: var(--font-base);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      resize: none;
+      min-height: 40px; max-height: 120px;
+      font-family: inherit;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .composer textarea:focus { border-color: var(--color-primary); box-shadow: var(--shadow-focus); outline: none; }
+    .composer .send-btn {
+      padding: 0 var(--space-5);
+      height: 40px;
+      background: linear-gradient(135deg, var(--color-primary) 0%, #4096ff 100%);
+      color: var(--color-text-inverse);
+      border: none; border-radius: var(--radius-md);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .composer .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .composer .send-btn:disabled { background: var(--color-border); cursor: not-allowed; }
+
+    /* 登录页 */
+    .login-page {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(22,119,255,0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(114,46,209,0.08) 0%, transparent 50%),
+        var(--color-bg);
+      padding: var(--space-4);
+    }
+    .login-card {
+      width: 100%; max-width: 420px;
+      background: var(--color-bg-elevated);
+      padding: var(--space-8) var(--space-6);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+      animation: fadeInUp var(--duration-slow) var(--ease-out);
+    }
+    .login-card .logo {
+      width: 64px; height: 64px;
+      margin: 0 auto var(--space-4);
+      background: linear-gradient(135deg, var(--color-primary) 0%, #722ed1 100%);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; color: var(--color-text-inverse);
+      box-shadow: 0 8px 24px rgba(22,119,255,0.25);
+    }
+    .login-card h1 { margin: 0 0 var(--space-1); font-size: var(--font-2xl); }
+    .login-card p.subtitle { color: var(--color-text-secondary); margin: 0 0 var(--space-6); font-size: var(--font-sm); }
+    .login-card input { margin-bottom: var(--space-3); }
+    .login-card .btn { width: 100%; padding: 12px; }
+    .login-card .hint { margin-top: var(--space-4); font-size: var(--font-xs); color: var(--color-text-tertiary); }
+    .login-card .hint code { background: var(--color-bg-hover); padding: 2px 6px; border-radius: var(--radius-sm); }
   </style>
 </head>
 <body>
 <div id="app">
-  <div v-if="!loggedIn" class="login-box">
-    <h2>🧑‍💼 坐席登录</h2>
-    <input v-model="code" placeholder="企微 userid（Mock 模式填任意值）">
-    <button @click="login">企业微信扫码登录</button>
-    <p style="font-size:12px;color:#888;text-align:center;margin-top:14px;">Mock 模式自动生成 userid。生产请用 <code>/auth/wechat-work/authorize</code> 跳转企微授权页。</p>
+  <!-- 登录页 -->
+  <div v-if="!loggedIn" class="login-page">
+    <div class="login-card">
+      <div class="logo">🧑‍💼</div>
+      <h1>坐席工作台</h1>
+      <p class="subtitle">企业微信扫码登录后开始服务</p>
+      <input class="input" v-model="code" placeholder="企微 userid（Mock 填任意值）">
+      <button class="btn btn-primary" @click="login">企业微信扫码登录</button>
+      <div class="hint">生产请跳转 <code>/auth/wechat-work/authorize</code></div>
+    </div>
   </div>
 
-  <div v-else class="layout">
+  <!-- 工作台 -->
+  <div v-else class="agent-app" :class="mobileView">
+    <!-- 侧边栏 -->
     <aside class="sidebar">
-      <h2>📋 排队客户</h2>
-      <div v-if="queue.length===0" style="color:#8c9aa8;text-align:center;padding:40px 0;font-size:13px;">暂无排队</div>
-      <div v-for="s in queue" :key="s.id" class="queue-item">
-        <div class="name">{{ s.customerId }}</div>
-        <div class="meta">⏱️ {{ s.queuedAt }}</div>
-        <button class="btn" @click="accept(s.id)">接听</button>
+      <div class="sidebar-header">
+        <h1>📋 排队客户 <span class="badge badge-info" style="background: var(--color-warning); color:#fff;">{{ queue.length }}</span></h1>
+        <div class="subtitle">坐席：{{ agentUsername }}</div>
+      </div>
+      <div class="sidebar-body">
+        <div v-if="queue.length===0" class="queue-empty">
+          <div class="icon">📭</div>
+          <div class="text">暂无排队客户</div>
+        </div>
+        <div v-for="(s, idx) in queue" :key="s.id" class="queue-card" :style="{ animationDelay: idx * 50 + 'ms' }">
+          <div class="qc-head">
+            <span class="qc-id">#{{ s.id }} <span class="badge">排队</span></span>
+          </div>
+          <div class="qc-meta">
+            <span>👤 {{ s.customerId }}</span>
+          </div>
+          <div class="qc-meta">
+            <span>⏱️ {{ formatTime(s.queuedAt) }}</span>
+          </div>
+          <button class="qc-btn" @click="accept(s.id)">接听 →</button>
+        </div>
       </div>
     </aside>
 
+    <!-- 主区 -->
     <main class="main">
       <div class="topbar">
-        <div><span class="who">{{ agentUsername }}</span><span class="badge">在线</span></div>
-        <div>
-          <button v-if="currentSession" class="danger" @click="agentHangup">挂断</button>
-        </div>
-      </div>
-
-      <div v-if="!currentSession" class="no-session">👈 从左侧选择排队客户接听</div>
-
-      <div v-else class="chat-area" ref="msgList">
-        <div v-for="m in messages" :key="m.id || m.ts" class="msg"
-             :class="{ me: m.fromRole==='AGENT', other: m.fromRole==='CUSTOMER', robot: m.fromRole==='ROBOT', system: m.fromRole==='SYSTEM' }">
-          <div>
-            <div v-if="m.type==='RICH'" class="rich-card" :class="m.payload?.type?.toLowerCase()">
-              <div class="title">{{ m.payload?.text }}</div>
-              <div v-if="m.payload?.type==='PRODUCT'" class="desc">年化 {{ m.payload.payload?.rate }}% ｜ {{ m.payload.payload?.period }}</div>
-            </div>
-            <div v-else class="bubble">{{ m.content }}</div>
-            <div class="meta">{{ m.fromUser }}</div>
+        <div class="left">
+          <button class="mobile-back" @click="goBack">←</button>
+          <div class="who">
+            <div class="who-avatar">{{ agentUsername.charAt(0).toUpperCase() }}</div>
+            <span>{{ agentUsername }}</span>
+            <span class="badge badge-success">在线</span>
           </div>
         </div>
+        <div class="right">
+          <button v-if="currentSession" class="btn btn-danger" @click="agentHangup">📞 挂断</button>
+        </div>
       </div>
 
-      <div v-if="currentSession && currentSession.status==='IN_SESSION'" class="composer">
-        <input v-model="text" placeholder="回复客户..." @keyup.enter="sendText">
-        <button @click="sendText" :disabled="!text.trim()">发送</button>
+      <div v-if="!currentSession" class="no-session">
+        <div class="icon">💤</div>
+        <div class="text">从左侧选择排队客户开始服务</div>
+        <div class="text" style="font-size: var(--font-sm); opacity: 0.6;">系统自动每 2 秒刷新排队</div>
+      </div>
+
+      <div v-else class="chat-stage">
+        <div class="chat-area" ref="msgList">
+          <div v-for="m in messages" :key="m.id || m.ts" class="msg"
+               :class="{ me: m.fromRole==='AGENT', other: m.fromRole==='CUSTOMER', robot: m.fromRole==='ROBOT', system: m.fromRole==='SYSTEM' }">
+            <div class="msg-avatar" :class="avatarClass(m.fromRole)">{{ avatarEmoji(m.fromRole) }}</div>
+            <div class="msg-body">
+              <div class="msg-name">{{ roleLabel(m.fromRole) }} · {{ formatTime(m.createdAt || m.ts) }}</div>
+              <div v-if="m.type==='RICH'">
+                <div v-if="m.payload?.type==='PRODUCT'" class="rich-card product">
+                  <div class="rc-title">💰 {{ m.payload.payload?.name || m.payload.text }}</div>
+                  <div class="rc-rate">{{ m.payload.payload?.rate }}<small>% 年化</small></div>
+                  <div class="rc-desc">{{ m.payload.payload?.desc }} · {{ m.payload.payload?.period }}</div>
+                </div>
+                <div v-else class="rich-card">
+                  <div class="rc-title">{{ m.payload?.text }}</div>
+                </div>
+              </div>
+              <div v-else class="bubble">{{ m.content }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <textarea v-model="text" placeholder="回复客户... (Enter 发送 / Shift+Enter 换行)" @keydown.enter.exact.prevent="sendText" rows="1"></textarea>
+          <button class="send-btn" :disabled="!text.trim()" @click="sendText">发送</button>
+        </div>
       </div>
     </main>
   </div>
@@ -112,17 +424,24 @@ createApp({
     const messages = ref([]);
     const text = ref('');
     const msgList = ref(null);
+    const mobileView = ref('mobile-show-queue');  // mobile only
     let stompClient = null;
     let pollTimer = null;
 
     function authHeader() { return { 'Authorization': 'Bearer ' + token.value, 'Content-Type': 'application/json' }; }
+    function avatarEmoji(r) { return { CUSTOMER: '🧑', AGENT: '👨‍💼', ROBOT: '🤖', SYSTEM: 'ℹ️' }[r] || '·'; }
+    function avatarClass(r) { return { CUSTOMER: 'cust', AGENT: 'agt', ROBOT: 'bot', SYSTEM: 'sys' }[r] || ''; }
+    function roleLabel(r) { return { CUSTOMER: '客户', AGENT: '我', ROBOT: '机器人', SYSTEM: '系统' }[r] || r; }
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = typeof ts === 'number' ? new Date(ts) : new Date(ts);
+      const diff = (Date.now() - d.getTime()) / 1000;
+      if (diff < 60) return Math.floor(diff) + 's 前';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm 前';
+      return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    }
 
     async function login() {
-      // 直接用 /auth/silent-login 给 mock userid 走代理 → 实际上这是企业微信 OAuth 简化
-      // 真实流程：跳转 /auth/wechat-work/authorize?redirect_uri=...&state=...
-      const r = await fetch(`/auth/wechat-work/callback?code=${encodeURIComponent(code.value || 'demo')}`);
-      // callback 是 redirect，简化处理：再调一次 silent 拿到 token
-      // 这里走另一条简化路径：直接用 customer 流程当 agent 演示
       const loginR = await fetch('/auth/silent-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,7 +474,12 @@ createApp({
       const d = await r.json();
       if (d.code) return alert('接听失败: ' + d.msg);
       currentSession.value = d.data;
+      mobileView.value = '';  // 移动端：切换到对话视图
       await loadHistory();
+    }
+
+    function goBack() {
+      mobileView.value = 'mobile-show-queue';
     }
 
     async function loadHistory() {
@@ -176,6 +500,7 @@ createApp({
       currentSession.value = null;
       messages.value = [];
       refreshQueue();
+      mobileView.value = 'mobile-show-queue';
     }
 
     function sendText() {
@@ -199,17 +524,18 @@ createApp({
           const env = JSON.parse(msg.body);
           if (env.type === 'ACCEPTED' || env.type === 'TRANSFERED') {
             currentSession.value = env.payload;
+            mobileView.value = '';
             loadHistory();
           }
           if (env.type === 'ENDED') {
-            currentSession.value = null; messages.value = [];
+            currentSession.value = null; messages.value = []; mobileView.value = 'mobile-show-queue';
           }
           if (env.type === 'CHAT_TEXT' || env.type === 'SYSTEM') {
-            messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'TEXT' });
+            messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'TEXT', ts: env.ts });
             scrollBottom();
           }
           if (env.type === 'RICH') {
-            messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: env.payload });
+            messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: env.payload, ts: env.ts });
             scrollBottom();
           }
         });
@@ -229,7 +555,11 @@ createApp({
       }
     });
 
-    return { loggedIn, code, agentUsername, queue, currentSession, messages, text, msgList, login, accept, agentHangup, sendText };
+    return {
+      loggedIn, code, agentUsername, queue, currentSession, messages, text, msgList, mobileView,
+      login, accept, agentHangup, sendText, goBack,
+      avatarEmoji, avatarClass, roleLabel, formatTime
+    };
   }
 }).mount('#app');
 </script>
