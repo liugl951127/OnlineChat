@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS customer_account (
     currency        VARCHAR(8)      NOT NULL DEFAULT 'CNY',
     status          TINYINT(1)      NOT NULL DEFAULT 1,
     version         BIGINT          NOT NULL DEFAULT 0        COMMENT '乐观锁',
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_customer_id (customer_id),
     INDEX idx_status (status)
@@ -39,14 +39,14 @@ CREATE TABLE IF NOT EXISTS trade_record (
     remark          VARCHAR(256)    NULL,
     operator_id     VARCHAR(64)     NULL,
     client_ip       VARCHAR(64)     NULL,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_trade_no (trade_no),
     INDEX idx_customer_id (customer_id),
     INDEX idx_type (type),
     INDEX idx_status (status),
-    INDEX idx_create_time (create_time)
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='交易流水';
 
 -- 产品表
@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS product (
     image_url       VARCHAR(512)    NULL,
     enabled         TINYINT(1)      NOT NULL DEFAULT 1,
     sort_order      INT             NOT NULL DEFAULT 0,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_product_code (product_code),
     INDEX idx_enabled (enabled),
@@ -89,13 +89,13 @@ CREATE TABLE IF NOT EXISTS orders (
     paid_at         DATETIME        NULL,
     cancelled_at    DATETIME        NULL,
     remark          VARCHAR(256)    NULL,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_order_no (order_no),
     INDEX idx_customer_id (customer_id),
     INDEX idx_status (status),
-    INDEX idx_create_time (create_time)
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表';
 
 -- 演示数据
@@ -103,4 +103,4 @@ INSERT INTO product (product_code, name, description, price, original_price, cat
     ('PRD-001', '标准版客服系统', '适合中小企业，3 坐席', 5800.00, 6800.00, 'service', 100),
     ('PRD-002', '企业版客服系统', '适合大型企业，10 坐席 + SLA', 18800.00, 22800.00, 'service', 50),
     ('PRD-003', '增值包：AI 智能客服', '意图识别 + 多轮对话', 9800.00, NULL, 'addon', 200)
-ON DUPLICATE KEY UPDATE update_time = CURRENT_TIMESTAMP;
+ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;

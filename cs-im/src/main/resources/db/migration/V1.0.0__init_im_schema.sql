@@ -23,14 +23,14 @@ CREATE TABLE IF NOT EXISTS chat_session (
     msg_count       INT             NOT NULL DEFAULT 0,
     rating          TINYINT         NULL                    COMMENT '满意度 1-5',
     rating_comment  VARCHAR(256)    NULL,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_session_id (session_id),
     INDEX idx_customer_id (customer_id),
     INDEX idx_agent_id (agent_id),
     INDEX idx_status (status),
-    INDEX idx_create_time (create_time)
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='会话表';
 
 -- 消息表（按月分区由 DBA 维护；此处简单索引）
@@ -52,13 +52,13 @@ CREATE TABLE IF NOT EXISTS chat_message (
     recall_time     DATETIME        NULL,
     reaction        VARCHAR(16)     NULL,
     client_ip       VARCHAR(64)     NULL,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_msg_id (msg_id),
     INDEX idx_session_id (session_id),
     INDEX idx_sender_id (sender_id),
-    INDEX idx_create_time (create_time),
-    INDEX idx_session_time (session_id, create_time)
+    INDEX idx_created_at (created_at),
+    INDEX idx_session_time (session_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息表';
 
 -- 文件上传记录
@@ -76,13 +76,13 @@ CREATE TABLE IF NOT EXISTS file_upload (
     scan_status     VARCHAR(16)     NOT NULL DEFAULT 'pending' COMMENT 'pending/clean/dirty',
     scan_time       DATETIME        NULL,
     deleted         TINYINT(1)      NOT NULL DEFAULT 0,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_file_id (file_id),
     INDEX idx_uploader_id (uploader_id),
     INDEX idx_session_id (session_id),
     INDEX idx_scan_status (scan_status),
-    INDEX idx_create_time (create_time)
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件上传记录';
 
 -- 客服队列（实时排队）
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS sensitive_word (
     category        VARCHAR(32)     NOT NULL DEFAULT 'general' COMMENT 'general/political/porn/violence',
     level           TINYINT         NOT NULL DEFAULT 1       COMMENT '1=替换 2=拦截',
     enabled         TINYINT(1)      NOT NULL DEFAULT 1,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_word (word),
     INDEX idx_enabled (enabled)
@@ -122,4 +122,4 @@ INSERT INTO sensitive_word (word, category, level) VALUES
     ('色情', 'porn', 2),
     ('暴力', 'violence', 1),
     ('诈骗', 'general', 2)
-ON DUPLICATE KEY UPDATE update_time = CURRENT_TIMESTAMP;
+ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;

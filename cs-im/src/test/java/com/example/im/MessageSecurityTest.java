@@ -178,8 +178,8 @@ class MessageSecurityTest {
 
     @Test
     void sanitizer_truncates() {
-        String long = "x".repeat(5000);
-        String clean = Sanitizer.text(long, 100);
+        String longText = "x".repeat(5000);
+        String clean = Sanitizer.text(longText, 100);
         assertThat(clean.length()).isEqualTo(100);
     }
 

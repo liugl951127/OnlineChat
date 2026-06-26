@@ -44,6 +44,8 @@ spring:
           time_zone: Asia/Shanghai
         order_inserts: true
         order_updates: true
+        physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        implicit_naming_strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyJpaCompliantImpl
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -127,3 +129,10 @@ spring:
       filters: stat,wall
       stat-view-servlet:
         enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy

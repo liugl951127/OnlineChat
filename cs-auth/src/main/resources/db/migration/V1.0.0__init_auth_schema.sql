@@ -18,15 +18,15 @@ CREATE TABLE IF NOT EXISTS wechat_user (
     email               VARCHAR(128)    NULL                    COMMENT '邮箱',
     provider            VARCHAR(20)     NOT NULL DEFAULT 'LOCAL' COMMENT 'LOCAL/WECHAT_OA/WECHAT_WORK/GITHUB/GOOGLE',
     provider_user_id    VARCHAR(128)    NULL                    COMMENT 'OAuth 提供方用户ID',
-    union_id            VARCHAR(128)    NULL                    COMMENT '微信 unionid',
+    unionid            VARCHAR(128)    NULL                    COMMENT '微信 unionid',
     login_fail_count    INT             NOT NULL DEFAULT 0,
     lock_until          DATETIME        NULL,
     role                VARCHAR(20)     NOT NULL DEFAULT 'CUSTOMER' COMMENT 'CUSTOMER/AGENT/ADMIN',
     status              TINYINT(1)      NOT NULL DEFAULT 1       COMMENT '1=正常 0=禁用',
     last_login_time     DATETIME        NULL,
     last_login_ip       VARCHAR(64)     NULL,
-    create_time         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_customer_id (customer_id),
     UNIQUE KEY uk_provider (provider, provider_user_id),
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS wechat_user (
     UNIQUE KEY uk_phone_enc (phone_enc),
     INDEX idx_email (email),
     INDEX idx_role (role),
-    INDEX idx_create_time (create_time)
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户主表';
 
 -- 用户 Token 表（JWT 黑名单 / 强制下线）
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS user_token (
     revoke_reason   VARCHAR(64)     NULL,
     ip              VARCHAR(64)     NULL,
     user_agent      VARCHAR(256)    NULL,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_token_id (token_id),
     INDEX idx_customer_id (customer_id),
@@ -68,12 +68,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
     ip              VARCHAR(64)     NULL,
     user_agent      VARCHAR(256)    NULL,
     result          VARCHAR(16)     NOT NULL DEFAULT 'success',
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_operator_id (operator_id),
     INDEX idx_action (action),
     INDEX idx_target (target_type, target_id),
-    INDEX idx_create_time (create_time)
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='审计日志';
 
 -- 黑名单（IP / 账号）
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS blacklist (
     reason          VARCHAR(256)    NULL,
     expire_at       DATETIME        NULL                    COMMENT '过期时间，NULL=永久',
     create_by       VARCHAR(64)     NULL,
-    create_time     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_type_value (type, value),
     INDEX idx_expire_at (expire_at)
@@ -99,4 +99,4 @@ VALUES (
     '系统管理员',
     'ADMIN',
     'LOCAL'
-) ON DUPLICATE KEY UPDATE update_time = CURRENT_TIMESTAMP;
+) ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
