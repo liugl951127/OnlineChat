@@ -25,6 +25,7 @@
         <module>cs-robot</module>
         <module>cs-im</module>
         <module>cs-trade</module>
+        <module>cs-message</module>
     </modules>
 
     <properties>
@@ -37,6 +38,7 @@
         <mysql.version>8.4.0</mysql.version>
         <druid.version>1.2.23</druid.version>
         <flyway.version>10.10.0</flyway.version>
+        <kafka.version>3.7.0</kafka.version>
     </properties>
 
     <dependencyManagement>
@@ -79,6 +81,16 @@
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-mysql</artifactId>
                 <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.kafka</groupId>
+                <artifactId>spring-kafka</artifactId>
+                <version>${kafka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -1,0 +1,60 @@
+server:
+  port: 9005
+
+spring:
+  application:
+    name: cs-message
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        file-extension: yaml
+
+  # Redis（在线状态 + 离线消息）
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 10
+          min-idle: 2
+
+  # Kafka
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: cs-message-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.common.kafka,com.example.message.model
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.example.common.kafka.ChatMessageEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+
+cs:
+  offline:
+    max-messages: 100
+    ttl-days: 7
+
+logging:
+  level:
+    com.example.message: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka: INFO

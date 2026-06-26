@@ -6,6 +6,9 @@ import com.example.common.RateLimiter;
 import com.example.common.Sanitizer;
 import com.example.common.SecurityContextHolder;
 import com.example.common.WsEnvelope;
+import com.example.common.kafka.ChatMessageEvent;
+import com.example.common.kafka.KafkaMessageProducer;
+import com.example.common.kafka.KafkaTopics;
 import com.example.im.domain.ChatMessage;
 import com.example.im.domain.ChatSession;
 import com.example.im.domain.MessageReaction;
@@ -38,6 +41,7 @@ public class MessageService {
     private final MessageReactionRepo reactionRepo;
     private final SimpMessagingTemplate broker;
     private final AuditService auditService;
+    private final KafkaMessageProducer kafkaProducer;
 
     @Qualifier("messageRateLimiter")
     private final RateLimiter messageRateLimiter;
@@ -110,8 +114,28 @@ public class MessageService {
                 .build();
         messageRepo.save(m);
 
-        // 7) 广播
-        broadcast(s, m);
+        // 7) 发到 Kafka（异步消息中台 -> 在线推/离线存）
+        try {
+            ChatMessageEvent event = ChatMessageEvent.builder()
+                    .eventId(java.util.UUID.randomUUID().toString())
+                    .msgId(String.valueOf(m.getId()))
+                    .sessionId(String.valueOf(s.getId()))
+                    .fromId(fromUser)
+                    .fromRole(fromRole)
+                    .fromName(fromUser)
+                    .toId("AGENT".equals(fromRole) ? s.getCustomerId() : s.getAgentUsername())
+                    .toRole("AGENT".equals(fromRole) ? "CUSTOMER" : "AGENT")
+                    .msgType("TEXT")
+                    .content(cleanContent)
+                    .sourceInstance(System.getenv("HOSTNAME"))
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            String topic = "AGENT".equals(fromRole) ? KafkaTopics.AGENT_MESSAGE : KafkaTopics.CUSTOMER_MESSAGE;
+            kafkaProducer.send(topic, String.valueOf(s.getId()), event);
+        } catch (Exception e) {
+            log.warn("[IM] kafka send failed, fallback to direct broker", e);
+            broadcast(s, m);  // Kafka 失败时降级为直接广播
+        }
 
         // 8) 审计
         auditService.log("MESSAGE_SEND", "MESSAGE", String.valueOf(m.getId()),
