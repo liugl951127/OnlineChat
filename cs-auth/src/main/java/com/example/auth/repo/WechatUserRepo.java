@@ -10,4 +10,8 @@ public interface WechatUserRepo extends JpaRepository<WechatUser, Long> {
     Optional<WechatUser> findByUnionid(String unionid);
     Optional<WechatUser> findByWwUserid(String wwUserid);
     Optional<WechatUser> findByCustomerId(String customerId);
+    Optional<WechatUser> findByUsername(String username);
+    Optional<WechatUser> findByPhoneEnc(String phoneEnc);
+    boolean existsByUsername(String username);
+    boolean existsByPhoneEnc(String phoneEnc);
 }

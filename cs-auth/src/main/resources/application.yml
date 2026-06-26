@@ -35,6 +35,12 @@ cs:
   jwt:
     secret: default-jwt-secret-change-me-in-production-32-chars-min
     ttl-ms: 86400000
+  sms:
+    mock: true
+    ttl-seconds: 300
+    length: 6
+  phone:
+    secret: please-change-this-32byte-aes-secret
 
 logging:
   level:
