@@ -5,6 +5,7 @@
   <title>登录 · 在线客服</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/shared/design-system.css">
+  <script src="/shared/bootstrap.js"></script>
   <style>
     body {
       min-height: 100vh;
@@ -412,10 +413,14 @@ createApp({
 
     function onLoginSuccess(data) {
       const token = data.token;
-      // 根据返回的 role 跳转（这里简化：都跳客户页）
-      const role = data.role || 'CUSTOMER';
-      const url = role === 'AGENT' ? '/agent/?token=' + token : '/customer/?token=' + token;
-      location.href = url;
+      // 根据 ?next= 参数决定跳哪个页面（一件部署）
+      const next = new URLSearchParams(location.search).get('next');
+      const target =
+        next === 'agent'  ? '/agent/' :
+        next === 'admin'  ? '/admin/' :
+        next === 'portal' ? '/app?role=portal' :
+        '/customer/';
+      location.href = target + '?token=' + encodeURIComponent(token);
     }
 
     async function sendCode(mode) {

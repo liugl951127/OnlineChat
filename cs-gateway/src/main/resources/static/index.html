@@ -2,24 +2,141 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>在线客服系统</title>
   <style>
-    body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .card { background: #fff; padding: 40px 50px; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); text-align: center; }
-    h1 { margin: 0 0 12px; }
-    p { color: #666; margin: 0 0 24px; }
-    a { display: inline-block; padding: 12px 28px; margin: 6px; background: #1677ff; color: #fff; text-decoration: none; border-radius: 8px; }
-    a.gray { background: #555; }
-    a.admin { background: #722ed1; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0; min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(22,119,255,0.12) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(114,46,209,0.12) 0%, transparent 50%),
+        #f7f8fa;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .portal {
+      width: 100%; max-width: 920px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      overflow: hidden;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .portal-header {
+      padding: 36px 40px;
+      background: linear-gradient(135deg, #1677ff 0%, #722ed1 100%);
+      color: #fff;
+      text-align: center;
+    }
+    .portal-header h1 { margin: 0 0 6px; font-size: 28px; }
+    .portal-header p { margin: 0; opacity: 0.9; font-size: 14px; }
+    .portal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 32px;
+    }
+    .portal-card {
+      display: flex; flex-direction: column;
+      padding: 28px 24px;
+      background: #f7f8fa;
+      border: 1px solid #e5e6eb;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #1f2329;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .portal-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      border-color: #1677ff;
+    }
+    .portal-card .icon { font-size: 40px; margin-bottom: 12px; }
+    .portal-card .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .portal-card .desc { font-size: 12px; color: #86909c; }
+    .portal-card.primary { background: linear-gradient(135deg, #e6f4ff 0%, #f0e6ff 100%); border-color: #d3adf7; }
+    .portal-card.danger { background: #fff1f0; border-color: #ffccc7; }
+    .portal-card.success { background: #f6ffed; border-color: #b7eb8f; }
+    .portal-footer {
+      padding: 20px 32px;
+      border-top: 1px solid #f0f0f0;
+      text-align: center;
+      font-size: 12px;
+      color: #86909c;
+      background: #fafafa;
+    }
+    .badge-row {
+      display: flex; gap: 6px; justify-content: center;
+      margin-top: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 11px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
+<div class="portal">
+  <div class="portal-header">
     <h1>🛎️ 在线客服系统</h1>
-    <p>Spring Cloud + Vue 3 + 公众号 OAuth + 企业微信 OAuth</p>
-    <a href="/login/">登录</a>
-    <a class="gray" href="/customer/">客户咨询</a>
-    <a class="admin" href="/admin/">后管系统</a>
+    <p>Spring Cloud + Vue 3 + 公众号 + 企微 + GitHub + Google</p>
+    <div class="badge-row">
+      <span class="badge">v1.6.5</span>
+      <span class="badge">Spring Cloud 2023</span>
+      <span class="badge">Java 17</span>
+    </div>
   </div>
+
+  <div class="portal-grid">
+    <a class="portal-card primary" href="/login/?next=customer">
+      <div class="icon">🧑</div>
+      <div class="title">客户咨询</div>
+      <div class="desc">智能客服 + 人工坐席<br>支持账单/产品/交易</div>
+    </a>
+    <a class="portal-card success" href="/login/?next=agent">
+      <div class="icon">👨‍💼</div>
+      <div class="title">坐席工作台</div>
+      <div class="desc">排队接听 / 富文本聊天<br>快捷回复模板 / 反应 / 撤回</div>
+    </a>
+    <a class="portal-card danger" href="/login/?next=admin">
+      <div class="icon">🛡️</div>
+      <div class="title">后管系统</div>
+      <div class="desc">会话审核 / 强制挂断<br>审计日志 / 数据看板</div>
+    </a>
+    <a class="portal-card" href="/docs/">
+      <div class="icon">📚</div>
+      <div class="title">API 文档</div>
+      <div class="desc">REST + WebSocket 接口</div>
+    </a>
+  </div>
+
+  <div class="portal-footer">
+    © 2026 OnlineChat · <a href="https://github.com/liugl951127/OnlineChat" style="color:#1677ff;">GitHub</a>
+  </div>
+</div>
+
+<script>
+  // ?next 参数透传到登录页，登录后跳转到对应页面
+  document.querySelectorAll('a[href^="/login/"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const url = new URL(a.href);
+      const next = url.searchParams.get('next');
+      if (next) {
+        e.preventDefault();
+        location.href = '/login/?next=' + encodeURIComponent(next);
+      }
+    });
+  });
+</script>
 </body>
 </html>
