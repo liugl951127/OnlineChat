@@ -1,0 +1,29 @@
+# 通用微服务 Dockerfile（多阶段构建）
+# 用法：在子模块目录 `mvn package` 后，把 jar 拷过来构建
+FROM eclipse-temurin:17-jre-jammy
+
+LABEL maintainer="liugl951127"
+
+ENV TZ=Asia/Shanghai \
+    LANG=C.UTF-8
+
+# 时区
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 运行时基础
+RUN apt-get update && apt-get install -y --no-install-recommends curl tini && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 复制 jar（构建时通过 -f 指定）
+ARG JAR_FILE=target/app.jar
+COPY ${JAR_FILE} app.jar
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsSL http://localhost:${SERVER_PORT:-9000}/actuator/health || exit 1
+
+EXPOSE 9000
+
+# tini 接管 PID 1（信号处理 + zombie 回收）
+ENTRYPOINT ["/usr/bin/tini", "--", "sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

@@ -1,0 +1,198 @@
+version: '3.8'
+
+services:
+  # ============ MySQL 8 ============
+  mysql:
+    image: mysql:8.4.0
+    container_name: cs-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cs_chat}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./deploy/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --max-connections=500
+      - --innodb-buffer-pool-size=512M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cs-net
+
+  # ============ Redis 7 ============
+  redis:
+    image: redis:7.2-alpine
+    container_name: cs-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - cs-net
+
+  # ============ Nacos 2.3 ============
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: cs-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      JVM_XMS: 512m
+      JVM_XMX: 512m
+      JVM_XMN: 256m
+      SPRING_DATASOURCE_PLATFORM: mysql
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-SecretKey012345678901234567890123456789012345678901234567890123456789}
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - nacos-data:/home/nacos/data
+      - nacos-logs:/home/nacos/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cs-net
+
+  # ============ 微服务 ============
+  cs-auth:
+    build:
+      context: .
+      dockerfile: deploy/docker/cs-auth.Dockerfile
+    container_name: cs-auth
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DB: cs_auth
+      NACOS_ADDR: nacos:8848
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "9001:9001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    networks:
+      - cs-net
+
+  cs-robot:
+    build:
+      context: .
+      dockerfile: deploy/docker/cs-robot.Dockerfile
+    container_name: cs-robot
+    restart: unless-stopped
+    environment:
+      NACOS_ADDR: nacos:8848
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "9002:9002"
+    depends_on:
+      - nacos
+    networks:
+      - cs-net
+
+  cs-im:
+    build:
+      context: .
+      dockerfile: deploy/docker/cs-im.Dockerfile
+    container_name: cs-im
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DB: cs_im
+      NACOS_ADDR: nacos:8848
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "9003:9003"
+    volumes:
+      - upload-data:/app/data/upload
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    networks:
+      - cs-net
+
+  cs-trade:
+    build:
+      context: .
+      dockerfile: deploy/docker/cs-trade.Dockerfile
+    container_name: cs-trade
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DB: cs_trade
+      NACOS_ADDR: nacos:8848
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "9004:9004"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    networks:
+      - cs-net
+
+  cs-gateway:
+    build:
+      context: .
+      dockerfile: deploy/docker/cs-gateway.Dockerfile
+    container_name: cs-gateway
+    restart: unless-stopped
+    environment:
+      NACOS_ADDR: nacos:8848
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "9000:9000"
+    depends_on:
+      - nacos
+      - cs-auth
+      - cs-im
+      - cs-trade
+    networks:
+      - cs-net
+
+volumes:
+  mysql-data:
+  redis-data:
+  nacos-data:
+  nacos-logs:
+  upload-data:
+
+networks:
+  cs-net:
+    driver: bridge

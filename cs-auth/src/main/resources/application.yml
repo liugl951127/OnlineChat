@@ -1,35 +1,65 @@
 server:
   port: 9001
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
 
 spring:
+  profiles:
+    active: dev
   application:
     name: cs-auth
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        file-extension: yaml
+
+  # ============ 默认 dev（连同主机 MySQL）============
   datasource:
-    url: jdbc:h2:mem:auth;DB_CLOSE_DELAY=-1;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:cs_auth}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useLegacyDatetimeCode=false
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+      filters: stat,wall,slf4j
+      stat-view-servlet:
+        enabled: true
+        login-username: admin
+        login-password: admin123
+        url-pattern: /druid/*
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate  # 由 Flyway 管理 schema
     show-sql: false
-
-wechat:
-  oa:
-    app-id: demo-oa-appid
-    app-secret: demo-oa-secret
-    redirect-uri: https://yourdomain.com/auth/wechat-oa/callback
-    mock: true
-  work:
-    corp-id: demo-corp
-    agent-id: demo-agent
-    app-secret: demo-secret
-    redirect-uri: https://yourdomain.com/auth/wechat-work/callback
-    mock: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Shanghai
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
 
 cs:
   jwt:
@@ -56,4 +86,40 @@ oauth:
 
 logging:
   level:
-    com.example.auth: INFO
+    com.example: DEBUG
+    org.hibernate.SQL: INFO
+
+---
+# ============ Test  profile（H2 内存数据库，单元测试用）============
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:auth_test;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    type: com.zaxxer.hikari.HikariDataSource
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+---
+# ============ Prod  profile（生产环境，由环境变量注入敏感信息）============
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB}?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    druid:
+      filters: stat,wall
+      stat-view-servlet:
+        enabled: false  # 生产关闭
+  jpa:
+    show-sql: false
