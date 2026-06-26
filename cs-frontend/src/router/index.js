@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useUserStore } from '@/store/user'
 
 const routes = [
@@ -11,7 +11,8 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  // 使用 Hash 模式：URL 带 #/login，避免后端 SPA fallback 配置
+  history: createWebHashHistory(),
   routes,
   scrollBehavior: () => ({ top: 0 })
 })

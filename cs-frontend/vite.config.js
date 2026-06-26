@@ -19,6 +19,14 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, 'src')
       }
     },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          // 启用 SCSS 变量共享（如需）
+          additionalData: ''
+        }
+      }
+    },
     server: {
       port: 5173,
       proxy: {
@@ -38,10 +46,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'element-plus': ['element-plus', '@element-plus/icons-vue'],
-            'vue-vendor': ['vue', 'vue-router', 'pinia']
-          }
+          manualChunks: undefined
         }
       },
       chunkSizeWarningLimit: 1500

@@ -8,7 +8,9 @@ import org.springframework.web.reactive.config.WebFluxConfigurer;
 public class StaticResourceConfig implements WebFluxConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/customer/**", "/agent/**", "/admin/**", "/**")
-                .addResourceLocations("classpath:/static/customer/", "classpath:/static/agent/", "classpath:/static/admin/", "classpath:/static/");
+        // Vue SPA 静态资源（位于 classpath:/static/）
+        // 注意：使用 hash 路由模式，不需要 server fallback
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/");
     }
 }
