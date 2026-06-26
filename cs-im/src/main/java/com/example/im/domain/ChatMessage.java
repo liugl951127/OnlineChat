@@ -1,55 +1,26 @@
 package com.example.im.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "chat_message", indexes = {
-        @Index(name = "idx_msg_session", columnList = "sessionId"),
-        @Index(name = "idx_msg_recalled", columnList = "recalled")
-})
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@TableName("chat_message")
 public class ChatMessage {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-    @Column(nullable = false)
     private Long sessionId;
-    /** CUSTOMER / AGENT / ROBOT / SYSTEM */
-    @Column(nullable = false, length = 16)
-    private String fromRole;
-    @Column(nullable = false, length = 64)
     private String fromUser;
-    @Column(nullable = false, length = 16)
-    private String type;          // TEXT / SYSTEM / RICH / FILE / RECALL
-    @Lob
-    @Column(nullable = false)
+    private String fromRole;
+    private String type;
     private String content;
-    @Column(columnDefinition = "TEXT")
-    private String payloadJson;
-    @Column(nullable = false)
-    private Instant createdAt;
-
-    /** 引用哪条消息（回复场景） */
-    @Column
-    private Long replyToId;
-    /** 撤回标记（1=已撤回） */
-    @Column
-    private Integer recalled;
-    /** 撤回时间 */
-    @Column
-    private Instant recalledAt;
-    /** 撤回人 */
-    @Column(length = 64)
-    private String recalledBy;
-    /** 消息签名（防伪造） */
-    @Column(length = 128)
     private String signature;
-
-    @PrePersist void onCreate() {
-        if (createdAt == null) createdAt = Instant.now();
-        if (recalled == null) recalled = 0;
-    }
+    private Long replyToId;
+    private Integer recalled;
+    private LocalDateTime recalledAt;
+    private String recalledBy;
+    private LocalDateTime createdAt;
 }

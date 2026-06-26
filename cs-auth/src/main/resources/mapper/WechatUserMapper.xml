@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.auth.repo.WechatUserMapper">
+    <select id="findByCustomerId" resultType="com.example.auth.domain.WechatUser">
+        SELECT * FROM wechat_user WHERE customer_id = #{customerId} LIMIT 1
+    </select>
+    <select id="findByUsername" resultType="com.example.auth.domain.WechatUser">
+        SELECT * FROM wechat_user WHERE username = #{username} LIMIT 1
+    </select>
+    <select id="findByPhoneEnc" resultType="com.example.auth.domain.WechatUser">
+        SELECT * FROM wechat_user WHERE phone_enc = #{phoneEnc} LIMIT 1
+    </select>
+    <select id="findByProviderAndProviderUserId" resultType="com.example.auth.domain.WechatUser">
+        SELECT * FROM wechat_user
+        WHERE provider = #{provider} AND provider_user_id = #{providerUserId}
+        LIMIT 1
+    </select>
+</mapper>

@@ -154,22 +154,6 @@ services:
     networks:
       - cs-net
 
-  cs-robot:
-    build:
-      context: .
-      dockerfile: deploy/docker/cs-robot.Dockerfile
-    container_name: cs-robot
-    restart: unless-stopped
-    environment:
-      NACOS_ADDR: nacos:8848
-      JAVA_OPTS: "-Xms256m -Xmx512m"
-    ports:
-      - "9002:9002"
-    depends_on:
-      - nacos
-    networks:
-      - cs-net
-
   cs-im:
     build:
       context: .
@@ -201,31 +185,6 @@ services:
     networks:
       - cs-net
 
-  cs-trade:
-    build:
-      context: .
-      dockerfile: deploy/docker/cs-trade.Dockerfile
-    container_name: cs-trade
-    restart: unless-stopped
-    environment:
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_USER: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-      MYSQL_DB: cs_trade
-      NACOS_ADDR: nacos:8848
-      SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m"
-    ports:
-      - "9004:9004"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      nacos:
-        condition: service_started
-    networks:
-      - cs-net
-
   cs-gateway:
     build:
       context: .
@@ -241,7 +200,6 @@ services:
       - nacos
       - cs-auth
       - cs-im
-      - cs-trade
     networks:
       - cs-net
 

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.BillMapper">
+    <select id="findByCustomerIdAndBizDateGreaterThanEqualOrderByBizDateDesc"
+            resultType="com.example.im.domain.Bill">
+        SELECT * FROM bill
+        WHERE customer_id = #{customerId} AND biz_date &gt;= #{from}
+        ORDER BY biz_date DESC, id DESC
+    </select>
+</mapper>

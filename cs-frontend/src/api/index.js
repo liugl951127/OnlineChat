@@ -38,6 +38,29 @@ export const agent = {
   stats: () => request.get('/agent/stats')
 }
 
+// ============= Product / Financial =============
+export const product = {
+  list: (type) => request.get('/product/list', { params: { type } }),
+  detail: (code) => request.get(`/product/${code}`)
+}
+
+export const risk = {
+  assess: (customerId, answers) => request.post(`/risk/assess?customerId=${customerId}`, answers),
+  latest: (customerId) => request.get('/risk/latest', { params: { customerId } })
+}
+
+export const order = {
+  create: data => request.post('/order/create', data),
+  assess: orderNo => request.post(`/order/${orderNo}/assess`),
+  compliance: orderNo => request.post(`/order/${orderNo}/compliance`),
+  pay: orderNo => request.post(`/order/${orderNo}/pay`),
+  oneClickBuy: data => request.post('/order/one-click-buy', data),
+  redeem: orderNo => request.post(`/order/${orderNo}/redeem`),
+  get: orderNo => request.get(`/order/${orderNo}`),
+  list: customerId => request.get('/order/list', { params: { customerId } }),
+  holdings: customerId => request.get('/order/holdings', { params: { customerId } })
+}
+
 // ============= Admin =============
 export const admin = {
   users: params => request.get('/admin/users', { params }),

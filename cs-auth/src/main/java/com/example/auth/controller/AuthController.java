@@ -155,6 +155,13 @@ public class AuthController {
         return ApiResponse.ok(Map.of("token", auth.replace("Bearer ", "")));
     }
 
+    /** 手机号实名认证查询 (v1.8.0: cs-im 反洗钱 / 适当性检查调用) */
+    @GetMapping("/verify/phone")
+    public ApiResponse<Map<String, Object>> verifyPhone(@RequestParam String customerId) {
+        boolean verified = authService.verifyPhone(customerId);
+        return ApiResponse.ok(Map.of("customerId", customerId, "verified", verified));
+    }
+
     private static String clientIp(HttpServletRequest req) {
         String xff = req.getHeader("X-Forwarded-For");
         return xff != null ? xff.split(",")[0] : req.getRemoteAddr();

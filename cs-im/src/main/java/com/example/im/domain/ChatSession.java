@@ -1,40 +1,31 @@
 package com.example.im.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "chat_session", indexes = {
-        @Index(name = "idx_cs_customer", columnList = "customerId")
-})
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+/**
+ * 聊天会话（MyBatis Plus 实体）
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@TableName("chat_session")
 public class ChatSession {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-    @Column(nullable = false, length = 64)
     private String customerId;
-    @Column(length = 64)
     private String agentUsername;
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
     private SessionStatus status;
-    @Column
-    private Instant queuedAt;
-    @Column
-    private Instant acceptedAt;
-    @Column
-    private Instant lastActiveAt;
-    @Column
-    private Instant endedAt;
-    @Column(length = 16)
+    private LocalDateTime queuedAt;
+    private LocalDateTime acceptedAt;
+    private LocalDateTime lastActiveAt;
+    private LocalDateTime lastMessageAt;
+    private LocalDateTime endedAt;
     private String endedBy;
-    @Column(nullable = false)
-    private Instant createdAt;
-    @PrePersist void onCreate() {
-        if (createdAt == null) createdAt = Instant.now();
-        if (status == null) status = SessionStatus.ROBOT;
-    }
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

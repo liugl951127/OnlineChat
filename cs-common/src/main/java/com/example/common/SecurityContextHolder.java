@@ -38,10 +38,16 @@ public final class SecurityContextHolder {
         if (c == null || c.getUserId() == null) throw new ApiException(401, "未登录");
         return c.getUserId();
     }
+
     public static String requireRole(String... roles) {
         SecurityContext c = current();
         if (c == null) throw new ApiException(401, "未登录");
         for (String r : roles) if (r.equals(c.getRole())) return c.getUserId();
         throw new ApiException(403, "权限不足");
+    }
+
+    public static boolean isAgent() {
+        SecurityContext c = current();
+        return c != null && "AGENT".equals(c.getRole());
     }
 }

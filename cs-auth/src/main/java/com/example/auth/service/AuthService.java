@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
+import java.time.LocalDateTime;import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -144,7 +144,7 @@ public class AuthService {
                 });
 
         // 检查锁定
-        if (u.getLockUntil() != null && u.getLockUntil().isAfter(Instant.now())) {
+        if (u.getLockUntil() != null && u.getLockUntil().isAfter(LocalDateTime.now())) {
             throw new ApiException(423, "账号已被锁定至 " + u.getLockUntil());
         }
         // 校验密码
@@ -164,7 +164,7 @@ public class AuthService {
         if (u == null) return;
         u.setLoginFailCount((u.getLoginFailCount() == null ? 0 : u.getLoginFailCount()) + 1);
         if (u.getLoginFailCount() >= MAX_FAIL_COUNT) {
-            u.setLockUntil(Instant.now().plus(Duration.ofMinutes(LOCK_MINUTES)));
+            u.setLockUntil(LocalDateTime.now().plus(Duration.ofMinutes(LOCK_MINUTES)));
             log.warn("[Auth] user {} locked until {}", username, u.getLockUntil());
         }
         userRepo.save(u);
@@ -317,5 +317,15 @@ public class AuthService {
         if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
             throw new ApiException(400, "手机号格式错误");
         }
+    }
+
+    /** 查询客户手机号实名认证状态 (v1.8.0: cs-im 反洗钱 / 适当性检查调用) */
+    public boolean verifyPhone(String customerId) {
+        if (customerId == null) return false;
+        // mock fallback: real_ 前缀认为已认证
+        if (customerId.startsWith("real_")) return true;
+        return userRepo.findByCustomerId(customerId)
+                .map(u -> Boolean.TRUE.equals(u.getPhoneVerified()))
+                .orElse(false);
     }
 }

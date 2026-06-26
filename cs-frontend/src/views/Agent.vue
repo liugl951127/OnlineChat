@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { im, agent as agentApi, robot } from '@/api'
 import { useUserStore } from '@/store/user'
+import ProductPanel from '@/components/ProductPanel.vue'
 import { formatTime, safeText, debounce } from '@/utils'
 
 const user = useUserStore()
@@ -22,6 +23,7 @@ const inputText = ref('')
 const sending = ref(false)
 const showEmoji = ref(false)
 const showTemplates = ref(false)
+const showProductPanel = ref(false)
 
 // ============= 模板库 =============
 const templates = ref(JSON.parse(localStorage.getItem('agent_templates') || '[]'))
@@ -223,6 +225,26 @@ function endSession() {
       loadSessions()
     }).catch(() => {})
 }
+
+const currentCustomer = computed(() => {
+  const s = sessions.value.find(s => s.id === activeId.value)
+  return s ? { id: s.customerId || s.customerName, name: s.customerName } : null
+})
+
+function onPurchased(data) {
+  // 购买成功后在聊天中发一条系统消息
+  if (data.orderNo && activeId.value) {
+    messages.value.push({
+      id: 'sys-' + Date.now(),
+      sessionId: activeId.value,
+      from: 'system',
+      fromName: '系统',
+      text: `🛍️ 订单 ${data.orderNo} 已成交，金额 ¥${data.amount || ''}。可以在「我的持仓」查看。`,
+      type: 'system',
+      time: Date.now()
+    })
+  }
+}
 </script>
 
 <template>
@@ -285,6 +307,9 @@ function endSession() {
           </div>
         </header>
 
+        <div v-if="showProductPanel && currentCustomer" class="product-wrapper">
+          <ProductPanel :customer-id="currentCustomer.id" :agent-username="user.profile?.name" @close="showProductPanel = false" @purchased="onPurchased" />
+        </div>
         <div class="messages" ref="messagesRef">
           <div v-for="m in messages" :key="m.id" class="msg-row" :class="{ mine: m.mine }">
             <el-avatar :size="36">{{ (m.fromName || '?').slice(0, 1) }}</el-avatar>
@@ -327,6 +352,7 @@ function endSession() {
             <el-upload :show-file-list="false" :before-upload="handleUpload">
               <el-button text :icon="'Upload'" />
             </el-upload>
+            <el-button text :icon="'ShoppingCart'" @click="showProductPanel = !showProductPanel" title="金融产品购买" />
             <el-popover :width="320" trigger="click" v-model:visible="showTemplates" title="快捷回复模板">
               <template #reference>
                 <el-button text :icon="'ChatLineSquare'" />
@@ -572,6 +598,14 @@ function endSession() {
     justify-content: flex-end;
     margin-top: 8px;
   }
+}
+
+.product-wrapper {
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafbfc;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 .emoji-grid {

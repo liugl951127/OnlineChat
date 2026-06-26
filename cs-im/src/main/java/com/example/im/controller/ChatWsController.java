@@ -3,6 +3,7 @@ package com.example.im.controller;
 import com.example.common.ApiException;
 import com.example.common.WsEnvelope;
 import com.example.im.domain.ChatSession;
+import com.example.im.service.MessageService;
 import com.example.im.service.SessionService;
 import com.example.im.ws.StompSessionUtils;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Controller;
 public class ChatWsController {
 
     private final SessionService sessionService;
+    private final MessageService messageService;
 
     @MessageMapping("/customer/chat")
     public void fromCustomer(Message<?> rawMessage, WsEnvelope inbound) {
@@ -27,7 +29,7 @@ public class ChatWsController {
         if (s.getStatus() != com.example.im.domain.SessionStatus.IN_SESSION) {
             throw new ApiException(400, "当前不在通话中，请通过 REST 调用机器人");
         }
-        sessionService.saveAndBroadcast(s, "CUSTOMER", inbound.getContent(), cid);
+        messageService.send(s.getId(), cid, cid, "CUSTOMER", inbound.getContent(), "TEXT");
     }
 
     @MessageMapping("/agent/chat")
@@ -39,6 +41,6 @@ public class ChatWsController {
         if (!agent.equals(s.getAgentUsername())) {
             throw new ApiException(403, "无权对该会话发言");
         }
-        sessionService.saveAndBroadcast(s, "AGENT", inbound.getContent(), agent);
+        messageService.send(s.getId(), agent, agent, "AGENT", inbound.getContent(), "TEXT");
     }
 }

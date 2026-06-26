@@ -1,19 +1,60 @@
 package com.example.auth.repo;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.example.auth.domain.WechatUser;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-public interface WechatUserRepo extends JpaRepository<WechatUser, Long> {
-    Optional<WechatUser> findByOpenid(String openid);
-    Optional<WechatUser> findByUnionid(String unionid);
-    Optional<WechatUser> findByWwUserid(String wwUserid);
-    Optional<WechatUser> findByCustomerId(String customerId);
-    Optional<WechatUser> findByUsername(String username);
-    Optional<WechatUser> findByPhoneEnc(String phoneEnc);
-    boolean existsByUsername(String username);
-    boolean existsByPhoneEnc(String phoneEnc);
+@Repository
+public class WechatUserRepo {
 
-    Optional<WechatUser> findByProviderAndProviderUserId(String provider, String providerUserId);
+    @Autowired private WechatUserMapper mapper;
+
+    public WechatUser save(WechatUser u) {
+        if (u.getId() == null) {
+            mapper.insert(u);
+        } else {
+            mapper.updateById(u);
+        }
+        return u;
+    }
+
+    public Optional<WechatUser> findById(Long id) {
+        return Optional.ofNullable(mapper.selectById(id));
+    }
+
+    public Optional<WechatUser> findByCustomerId(String customerId) {
+        return mapper.findByCustomerId(customerId);
+    }
+
+    public Optional<WechatUser> findByUsername(String username) {
+        return mapper.findByUsername(username);
+    }
+
+    public Optional<WechatUser> findByPhoneEnc(String phoneEnc) {
+        return mapper.findByPhoneEnc(phoneEnc);
+    }
+
+    public Optional<WechatUser> findByProviderAndProviderUserId(String provider, String providerUserId) {
+        return mapper.findByProviderAndProviderUserId(provider, providerUserId);
+    }
+
+    /** 兼容旧 JPA 方法（MyBatis Plus 派生查询） */
+    public Optional<WechatUser> findByOpenid(String openid) {
+        return Optional.ofNullable(mapper.selectOne(new QueryWrapper<WechatUser>().eq("openid", openid)));
+    }
+
+    public Optional<WechatUser> findByWwUserid(String wwUserid) {
+        return Optional.ofNullable(mapper.selectOne(new QueryWrapper<WechatUser>().eq("ww_userid", wwUserid)));
+    }
+
+    public boolean existsByUsername(String username) {
+        return mapper.selectCount(new QueryWrapper<WechatUser>().eq("username", username)) > 0;
+    }
+
+    public boolean existsByPhoneEnc(String phoneEnc) {
+        return mapper.selectCount(new QueryWrapper<WechatUser>().eq("phone_enc", phoneEnc)) > 0;
+    }
 }
