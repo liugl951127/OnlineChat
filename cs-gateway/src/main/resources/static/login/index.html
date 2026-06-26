@@ -298,6 +298,8 @@
       <div class="social-row">
         <button class="social-btn" @click="oaLogin">💚 公众号</button>
         <button class="social-btn" @click="workLogin">💼 企业微信</button>
+        <button class="social-btn" @click="githubLogin" style="grid-column: span 2;">⭐ GitHub OAuth</button>
+        <button class="social-btn" @click="googleLogin" style="grid-column: span 2;">🔵 Google OAuth</button>
       </div>
     </div>
 
@@ -444,11 +446,23 @@ createApp({
     function workLogin() {
       location.href = '/auth/wechat-work/authorize?redirect_uri=' + encodeURIComponent(location.origin + '/agent/');
     }
+    function githubLogin() {
+      location.href = '/auth/github/authorize?redirect_uri=' + encodeURIComponent(location.origin + '/auth/github/callback');
+    }
+    function googleLogin() {
+      location.href = '/auth/google/authorize?redirect_uri=' + encodeURIComponent(location.origin + '/auth/google/callback');
+    }
     function forgotPwd() { showToast('请联系管理员重置（admin/admin）'); }
 
     onMounted(() => {
       const params = new URLSearchParams(location.search);
       if (params.get('register')) { registerMode.value = true; tab.value = 'password'; }
+      const err = params.get('error');
+      if (err) {
+        setTimeout(() => showToast(decodeURIComponent(err)), 300);
+        // 清理 URL
+        history.replaceState(null, '', location.pathname);
+      }
     });
 
     return {

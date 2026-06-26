@@ -36,6 +36,9 @@ public class AuthService {
     private final WechatUserRepo userRepo;
     private final WechatOaClient oaClient;
     private final WechatWorkClient workClient;
+    private final GithubOAuthClient githubClient;
+    private final GoogleOAuthClient googleClient;
+    private final OAuthStateCache stateCache;
     private final SmsService smsService;
     private final JwtUtils jwtUtils;
     private final StringRedisTemplate redis;
@@ -238,6 +241,67 @@ public class AuthService {
 
     public String workAuthorizeUrl(String redirectUri, String state) {
         return workClient.authorizeUrl(redirectUri, state);
+    }
+
+    // ==================== OAuth: GitHub / Google ====================
+
+    public String githubAuthorizeUrl(String redirectUri, String scope) {
+        String state = stateCache.generate("github");
+        return githubClient.authorizeUrl(redirectUri, state, scope);
+    }
+
+    @Transactional
+    public Map<String, Object> githubCallback(String code, String state) {
+        if (!stateCache.verifyAndConsume("github", state)) {
+            throw new ApiException(400, "无效的 state（可能为伪造请求或已过期）");
+        }
+        String accessToken = githubClient.exchangeCode(code);
+        Map<String, String> info = githubClient.fetchUser(accessToken);
+        return oauthUpsert("GITHUB", info, "github", "https://api.dicebear.com/7.x/identicon/svg?seed=" + info.get("login"));
+    }
+
+    public String googleAuthorizeUrl(String redirectUri, String scope) {
+        String state = stateCache.generate("google");
+        return googleClient.authorizeUrl(redirectUri, state, scope);
+    }
+
+    @Transactional
+    public Map<String, Object> googleCallback(String code, String state, String redirectUri) {
+        if (!stateCache.verifyAndConsume("google", state)) {
+            throw new ApiException(400, "无效的 state（可能为伪造请求或已过期）");
+        }
+        String accessToken = googleClient.exchangeCode(code, redirectUri);
+        Map<String, String> info = googleClient.fetchUser(accessToken);
+        return oauthUpsert("GOOGLE", info, "google", info.getOrDefault("picture", ""));
+    }
+
+    /** OAuth 账号 upsert：首次登录创建用户，之后只更新头像 */
+    @Transactional
+    public Map<String, Object> oauthUpsert(String provider, Map<String, String> info, String channel, String fallbackAvatar) {
+        String providerUserId = info.get("id") != null ? info.get("id") : info.get("sub");
+        if (providerUserId == null || providerUserId.isEmpty()) {
+            throw new ApiException(500, "OAuth provider 未返回用户 ID");
+        }
+        WechatUser u = userRepo.findByProviderAndProviderUserId(provider, providerUserId).orElseGet(() -> {
+            String cid = (provider.equals("GITHUB") ? "gh-" : "gg-") + java.util.UUID.randomUUID().toString().substring(0, 12);
+            return userRepo.save(WechatUser.builder()
+                    .customerId(cid)
+                    .provider(provider)
+                    .providerUserId(providerUserId)
+                    .nickname(info.getOrDefault("name", info.getOrDefault("login", provider + "-user")))
+                    .avatar(info.getOrDefault("avatar_url", info.getOrDefault("picture", fallbackAvatar)))
+                    .loginFailCount(0)
+                    .build());
+        });
+        // 更新头像（可能被用户换过头像）
+        String newAvatar = info.get("avatar_url");
+        if (newAvatar == null) newAvatar = info.get("picture");
+        if (newAvatar != null && !newAvatar.isEmpty()) {
+            u.setAvatar(newAvatar);
+            userRepo.save(u);
+        }
+        log.info("[OAuth] {} user {} login as {}", provider, providerUserId, u.getCustomerId());
+        return tokenResponse(u, channel);
     }
 
     private void validateUsername(String u) {

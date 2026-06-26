@@ -42,6 +42,18 @@ cs:
   phone:
     secret: please-change-this-32byte-aes-secret
 
+oauth:
+  github:
+    client-id: demo-github-client-id
+    client-secret: demo-github-secret
+    redirect-uri: https://yourdomain.com/auth/github/callback
+    mock: true
+  google:
+    client-id: demo-google-client-id
+    client-secret: demo-google-secret
+    redirect-uri: https://yourdomain.com/auth/google/callback
+    mock: true
+
 logging:
   level:
     com.example.auth: INFO

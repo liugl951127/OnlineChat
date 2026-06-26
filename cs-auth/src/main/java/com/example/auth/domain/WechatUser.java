@@ -41,6 +41,14 @@ public class WechatUser {
     @Column(length = 64)
     private String username;
 
+    /** OAuth 提供方：GITHUB / GOOGLE / WECHAT_OA / WECHAT_WORK / LOCAL */
+    @Column(length = 32)
+    private String provider;
+
+    /** OAuth 提供方的用户唯一 ID */
+    @Column(length = 128)
+    private String providerUserId;
+
     /** 手机号（AES 加密存储） */
     @Column(length = 128)
     private String phoneEnc;

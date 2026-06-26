@@ -61,6 +61,47 @@ public class AuthController {
         resp.sendRedirect("/agent/?token=" + token.get("token"));
     }
 
+    // ============ GitHub OAuth ============
+    @GetMapping("/github/authorize")
+    public void githubAuthorize(@RequestParam String redirectUri,
+                                 @RequestParam(required = false) String scope,
+                                 HttpServletResponse resp) throws IOException {
+        resp.sendRedirect(authService.githubAuthorizeUrl(redirectUri, scope));
+    }
+
+    @GetMapping("/github/callback")
+    public void githubCallback(@RequestParam String code,
+                                @RequestParam String state,
+                                HttpServletResponse resp) throws IOException {
+        try {
+            Map<String, Object> token = authService.githubCallback(code, state);
+            resp.sendRedirect("/customer/?token=" + token.get("token"));
+        } catch (Exception e) {
+            resp.sendRedirect("/login/?error=" + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    // ============ Google OAuth ============
+    @GetMapping("/google/authorize")
+    public void googleAuthorize(@RequestParam String redirectUri,
+                                 @RequestParam(required = false) String scope,
+                                 HttpServletResponse resp) throws IOException {
+        resp.sendRedirect(authService.googleAuthorizeUrl(redirectUri, scope));
+    }
+
+    @GetMapping("/google/callback")
+    public void googleCallback(@RequestParam String code,
+                                @RequestParam String state,
+                                @RequestParam String redirect_uri,
+                                HttpServletResponse resp) throws IOException {
+        try {
+            Map<String, Object> token = authService.googleCallback(code, state, redirect_uri);
+            resp.sendRedirect("/customer/?token=" + token.get("token"));
+        } catch (Exception e) {
+            resp.sendRedirect("/login/?error=" + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
     // ============ 用户名 + 密码 ============
     @PostMapping("/register")
     public ApiResponse<Map<String, Object>> register(@RequestBody RegisterReq req) {
