@@ -279,6 +279,108 @@
     .composer .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-md); }
     .composer .send-btn:disabled { background: var(--color-border); cursor: not-allowed; }
 
+    /* 快捷回复面板 */
+    .quick-replies {
+      background: var(--color-bg);
+      border-top: 1px solid var(--color-divider);
+      padding: var(--space-3) var(--space-5);
+      display: flex; align-items: center; gap: var(--space-2);
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .quick-replies .qr-label {
+      font-size: var(--font-xs); color: var(--color-text-tertiary);
+      display: flex; align-items: center; gap: 4px;
+      flex-shrink: 0;
+    }
+    .qr-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px 12px;
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      font-size: var(--font-sm);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--duration-fast) var(--ease-out);
+      flex-shrink: 0;
+    }
+    .qr-chip:hover { border-color: var(--color-primary); color: var(--color-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .qr-chip .qr-icon { font-size: 14px; }
+    .qr-manage {
+      background: transparent; border: 1px dashed var(--color-border);
+      color: var(--color-text-tertiary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .qr-manage:hover { color: var(--color-primary); border-color: var(--color-primary); background: var(--color-primary-light); }
+
+    /* 快捷回复编辑弹窗 */
+    .qr-editor {
+      position: fixed; inset: 0;
+      background: var(--color-bg-mask);
+      z-index: var(--z-modal);
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--space-4);
+      animation: fadeIn var(--duration-base) var(--ease-out);
+    }
+    .qr-editor-panel {
+      background: var(--color-bg-elevated);
+      border-radius: var(--radius-xl);
+      width: 100%; max-width: 540px;
+      max-height: 80vh;
+      display: flex; flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      animation: fadeInUp var(--duration-slow) var(--ease-out);
+    }
+    .qr-editor-header {
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--color-divider);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .qr-editor-header h3 { margin: 0; font-size: var(--font-lg); }
+    .qr-editor-body {
+      flex: 1; overflow-y: auto;
+      padding: var(--space-4) var(--space-5);
+    }
+    .qr-editor-item {
+      display: flex; align-items: flex-start; gap: var(--space-3);
+      padding: var(--space-3);
+      border: 1px solid var(--color-border-light);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-2);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .qr-editor-item:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
+    .qr-editor-item .qr-content { flex: 1; }
+    .qr-editor-item .qr-title { font-size: var(--font-sm); font-weight: var(--font-semibold); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .qr-editor-item .qr-text { font-size: var(--font-xs); color: var(--color-text-secondary); line-height: 1.5; white-space: pre-wrap; }
+    .qr-editor-item .qr-actions { display: flex; gap: 4px; }
+    .qr-editor-item .icon-btn {
+      width: 28px; height: 28px;
+      background: transparent; border: none; border-radius: var(--radius-sm);
+      color: var(--color-text-tertiary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qr-editor-item .icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text); }
+    .qr-editor-item .icon-btn.danger:hover { background: var(--color-danger-light); color: var(--color-danger); }
+    .qr-add-form {
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-primary-light);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-3);
+    }
+    .qr-add-form input, .qr-add-form textarea {
+      width: 100%; margin-bottom: var(--space-2);
+      font-size: var(--font-sm);
+      padding: 8px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+    }
+    .qr-add-form textarea { min-height: 60px; resize: vertical; }
+    .qr-add-form .form-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+
     /* 登录页 */
     .login-page {
       min-height: 100vh;
@@ -405,8 +507,59 @@
           <textarea v-model="text" placeholder="回复客户... (Enter 发送 / Shift+Enter 换行)" @keydown.enter.exact.prevent="sendText" rows="1"></textarea>
           <button class="send-btn" :disabled="!text.trim()" @click="sendText">发送</button>
         </div>
+
+        <!-- 快捷回复面板 -->
+        <div class="quick-replies" v-if="quickReplies.length > 0">
+          <span class="qr-label">⚡ 快捷：</span>
+          <div class="qr-chip" v-for="(q, idx) in quickReplies.slice(0, 8)" :key="idx" @click="applyQuickReply(q)">
+            <span class="qr-icon">{{ q.icon || '💬' }}</span>
+            <span>{{ q.title }}</span>
+          </div>
+          <div class="qr-chip qr-manage" @click="showQrEditor=true">+ 管理</div>
+        </div>
       </div>
     </main>
+
+    <!-- 快捷回复编辑弹窗 -->
+    <div v-if="showQrEditor">
+      <div class="qr-editor" @click.self="showQrEditor=false">
+        <div class="qr-editor-panel">
+          <div class="qr-editor-header">
+            <h3>⚡ 快捷回复管理</h3>
+            <button class="drawer-close" @click="showQrEditor=false">✕</button>
+          </div>
+          <div class="qr-editor-body">
+            <!-- 添加表单 -->
+            <div class="qr-add-form">
+              <input v-model="newQr.icon" placeholder="表情 (如 📝)" maxlength="2">
+              <input v-model="newQr.title" placeholder="标题 (如 开户流程)">
+              <textarea v-model="newQr.text" placeholder="回复内容..."></textarea>
+              <div class="form-actions">
+                <button class="btn btn-default btn-sm" @click="resetNewQr">重置</button>
+                <button class="btn btn-primary btn-sm" @click="addQuickReply" :disabled="!newQr.title || !newQr.text">添加</button>
+              </div>
+            </div>
+
+            <!-- 列表 -->
+            <div v-if="quickReplies.length===0" class="empty-state">
+              <div class="icon">📝</div>
+              <div class="title">还没有快捷回复</div>
+              <div class="desc">在上方添加后下次会话可重复使用</div>
+            </div>
+            <div v-for="(q, idx) in quickReplies" :key="q.id" class="qr-editor-item">
+              <div class="qr-content">
+                <div class="qr-title">{{ q.icon || '💬' }} {{ q.title }}</div>
+                <div class="qr-text">{{ q.text }}</div>
+              </div>
+              <div class="qr-actions">
+                <button class="icon-btn" title="插入" @click="applyQuickReply(q)">↗</button>
+                <button class="icon-btn danger" title="删除" @click="deleteQuickReply(q.id)">🗑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -425,8 +578,72 @@ createApp({
     const text = ref('');
     const msgList = ref(null);
     const mobileView = ref('mobile-show-queue');  // mobile only
+    const showQrEditor = ref(false);
+    const quickReplies = ref([]);
+    const newQr = reactive({ icon: '💬', title: '', text: '' });
     let stompClient = null;
     let pollTimer = null;
+
+    // 预设快捷回复（首次自动加载）
+    const PRESET_REPLIES = [
+      { id: 'preset-1', icon: '👋', title: '问候', text: '您好，很高兴为您服务，请问有什么可以帮您？' },
+      { id: 'preset-2', icon: '⏳', title: '稍等', text: '请稍等，我这边帮您查一下...' },
+      { id: 'preset-3', icon: '📋', title: '查账单', text: '正在为您查询最近 7 天的交易账单，请稍候。' },
+      { id: 'preset-4', icon: '💰', title: '产品介绍', text: '我行理财产品丰富：\n• 活期理财 Plus：年化 2.85%，灵活赎回\n• 30 天稳健：年化 3.2%\n• 90 天进阶：年化 4.5%\n请问您倾向哪款？' },
+      { id: 'preset-5', icon: '✅', title: '联网核查', text: '请提供您的身份证号，我帮您进行联网核查。' },
+      { id: 'preset-6', icon: '❌', title: '未通过', text: '抱歉，联网核查未通过。请核对信息后重试，或联系线下网点。' },
+      { id: 'preset-7', icon: '🎉', title: '下单成功', text: '办理成功！请在【我的订单】中查看详情。如有疑问随时联系我。' },
+      { id: 'preset-8', icon: '🔄', title: '转接说明', text: '我将为您转接至更专业的同事处理，请稍等。' },
+      { id: 'preset-9', icon: '📞', title: '回访', text: '感谢您的咨询！我们会在 24 小时内回访，请保持电话畅通。' },
+      { id: 'preset-10', icon: '🙏', title: '结束语', text: '请问还有其他问题吗？如没有，感谢您的信任，祝您生活愉快！' }
+    ];
+
+    // 加载快捷回复（localStorage）
+    function loadQuickReplies() {
+      try {
+        const saved = localStorage.getItem('cs_quick_replies_' + agentUsername.value);
+        if (saved) {
+          quickReplies.value = JSON.parse(saved);
+        } else {
+          quickReplies.value = [...PRESET_REPLIES];
+          saveQuickReplies();
+        }
+      } catch (e) {
+        quickReplies.value = [...PRESET_REPLIES];
+      }
+    }
+    function saveQuickReplies() {
+      if (!agentUsername.value) return;
+      localStorage.setItem('cs_quick_replies_' + agentUsername.value, JSON.stringify(quickReplies.value));
+    }
+    function applyQuickReply(q) {
+      text.value = (text.value ? text.value + '\n' : '') + q.text;
+      showQrEditor.value = false;
+      // 自动聚焦到 textarea
+      nextTick(() => {
+        const ta = document.querySelector('.composer textarea');
+        if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      });
+    }
+    function addQuickReply() {
+      quickReplies.value.unshift({
+        id: 'qr-' + Date.now(),
+        icon: newQr.icon || '💬',
+        title: newQr.title,
+        text: newQr.text
+      });
+      saveQuickReplies();
+      resetNewQr();
+    }
+    function deleteQuickReply(id) {
+      quickReplies.value = quickReplies.value.filter(q => q.id !== id);
+      saveQuickReplies();
+    }
+    function resetNewQr() {
+      newQr.icon = '💬';
+      newQr.title = '';
+      newQr.text = '';
+    }
 
     function authHeader() { return { 'Authorization': 'Bearer ' + token.value, 'Content-Type': 'application/json' }; }
     function avatarEmoji(r) { return { CUSTOMER: '🧑', AGENT: '👨‍💼', ROBOT: '🤖', SYSTEM: 'ℹ️' }[r] || '·'; }
@@ -451,6 +668,7 @@ createApp({
       token.value = d.data.token;
       agentUsername.value = d.data.customerId;
       loggedIn.value = true;
+      loadQuickReplies();
       connectWs();
       startPoll();
     }
@@ -550,6 +768,7 @@ createApp({
         token.value = t;
         agentUsername.value = 'agent-mock';
         loggedIn.value = true;
+        loadQuickReplies();
         connectWs();
         startPoll();
       }
@@ -557,7 +776,9 @@ createApp({
 
     return {
       loggedIn, code, agentUsername, queue, currentSession, messages, text, msgList, mobileView,
+      showQrEditor, quickReplies, newQr,
       login, accept, agentHangup, sendText, goBack,
+      applyQuickReply, addQuickReply, deleteQuickReply, resetNewQr,
       avatarEmoji, avatarClass, roleLabel, formatTime
     };
   }

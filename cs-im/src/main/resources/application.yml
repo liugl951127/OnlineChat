@@ -17,6 +17,16 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+cs:
+  upload:
+    dir: ./data/upload/
+    url-prefix: /upload/
+    max-size: 20971520   # 20MB
 
 wechat:
   oa:

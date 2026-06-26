@@ -397,6 +397,135 @@
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Emoji 选择器 */
+    .emoji-panel {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      width: 320px; max-width: calc(100vw - 32px);
+      background: var(--color-bg-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: var(--z-dropdown);
+      animation: fadeInUp var(--duration-base) var(--ease-out);
+      overflow: hidden;
+    }
+    .emoji-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--color-divider);
+    }
+    .emoji-panel-header .tabs { display: flex; gap: 4px; }
+    .emoji-panel-header .tab {
+      padding: 4px 10px;
+      font-size: var(--font-xs);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      color: var(--color-text-secondary);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .emoji-panel-header .tab.active { background: var(--color-primary-light); color: var(--color-primary); font-weight: var(--font-semibold); }
+    .emoji-panel-header .close {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--color-text-tertiary); padding: 4px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .emoji-panel-header .close:hover { background: var(--color-bg-hover); }
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 2px;
+      padding: var(--space-3);
+      max-height: 220px; overflow-y: auto;
+    }
+    .emoji-grid button {
+      width: 36px; height: 36px;
+      background: transparent; border: none;
+      font-size: 22px;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .emoji-grid button:hover { background: var(--color-bg-hover); transform: scale(1.15); }
+
+    /* 文件消息渲染 */
+    .file-msg { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); }
+    .file-msg .file-icon {
+      width: 48px; height: 48px;
+      background: var(--color-primary-light);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0;
+    }
+    .file-msg .file-info { flex: 1; min-width: 0; }
+    .file-msg .file-name {
+      font-size: var(--font-sm); font-weight: var(--font-medium);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      margin-bottom: 2px;
+    }
+    .file-msg .file-meta { font-size: var(--font-xs); color: var(--color-text-tertiary); }
+    .file-msg .file-action {
+      padding: 6px 12px;
+      background: var(--color-primary);
+      color: #fff;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      font-size: var(--font-xs);
+      font-weight: var(--font-medium);
+      flex-shrink: 0;
+    }
+    .image-msg { padding: 4px; max-width: 240px; }
+    .image-msg img {
+      max-width: 100%;
+      max-height: 240px;
+      border-radius: var(--radius-md);
+      display: block;
+      cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+    .image-msg img:hover { transform: scale(1.02); box-shadow: var(--shadow-md); }
+
+    /* 客户页 Composer 增强 */
+    .chat-composer { position: relative; align-items: center; }
+    .composer-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      transition: all var(--duration-fast) var(--ease-out);
+      flex-shrink: 0;
+    }
+    .composer-btn:hover { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary); transform: scale(1.05); }
+
+    /* 上传中遮罩 */
+    .upload-progress {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: var(--z-modal);
+    }
+    .upload-progress .card-progress {
+      background: var(--color-bg-elevated);
+      padding: var(--space-6) var(--space-8);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      text-align: center;
+      min-width: 280px;
+    }
+    .upload-progress .spinner-lg {
+      width: 36px; height: 36px;
+      margin: 0 auto var(--space-3);
+      border: 3px solid var(--color-primary-light);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -453,7 +582,18 @@
         <div class="msg-body">
           <div class="msg-name">{{ roleLabel(m.fromRole) }} · {{ formatTime(m.ts) }}</div>
           <div v-if="m.type==='RICH'">
-            <div v-if="m.payload?.type==='BILL'" class="rich-card bill">
+            <div v-if="m.payload?.type==='IMAGE'" class="image-msg">
+              <img :src="m.payload.url" :alt="m.payload.originalName" @click="window.open(m.payload.url)">
+            </div>
+            <div v-else-if="m.payload?.type==='FILE'" class="file-msg">
+              <div class="file-icon">{{ fileEmoji(m.payload.mimeType) }}</div>
+              <div class="file-info">
+                <div class="file-name">{{ m.payload.originalName }}</div>
+                <div class="file-meta">{{ formatSize(m.payload.size) }}</div>
+              </div>
+              <a class="file-action" :href="m.payload.url" target="_blank" download>下载</a>
+            </div>
+            <div v-else-if="m.payload?.type==='BILL'" class="rich-card bill">
               <div class="rc-title">📊 {{ m.payload.text }}</div>
               <div v-if="m.payload.payload?.items">
                 <div v-if="m.payload.payload.items[0]?.count !== undefined" class="rc-summary">
@@ -504,8 +644,36 @@
 
     <!-- 输入 -->
     <div v-if="authed && session && (session.status==='ROBOT' || session.status==='IN_SESSION')" class="chat-composer">
+      <button class="composer-btn" @click="toggleEmoji" title="表情">😊</button>
+      <button class="composer-btn" @click="$refs.fileInput.click()" title="上传文件">📎</button>
+      <input type="file" ref="fileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" @change="uploadFile">
       <input v-model="text" placeholder="输入消息..." @keyup.enter="sendText">
       <button class="send-btn" @click="sendText" :disabled="!text.trim()">发送</button>
+
+      <!-- Emoji 面板 -->
+      <div v-if="showEmoji" class="emoji-panel" @click.stop>
+        <div class="emoji-panel-header">
+          <div class="tabs">
+            <div class="tab" :class="{ active: emojiTab==='face' }" @click="emojiTab='face'">表情</div>
+            <div class="tab" :class="{ active: emojiTab==='gesture' }" @click="emojiTab='gesture'">手势</div>
+            <div class="tab" :class="{ active: emojiTab==='heart' }" @click="emojiTab='heart'">心</div>
+            <div class="tab" :class="{ active: emojiTab==='symbol' }" @click="emojiTab='symbol'">符号</div>
+          </div>
+          <button class="close" @click="showEmoji=false">✕</button>
+        </div>
+        <div class="emoji-grid">
+          <button v-for="(e, idx) in emojiList[emojiTab]" :key="idx" @click="insertEmoji(e)">{{ e }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 上传中遮罩 -->
+    <div v-if="uploading" class="upload-progress">
+      <div class="card-progress">
+        <div class="spinner-lg"></div>
+        <div style="font-weight: var(--font-semibold); margin-bottom: 4px;">上传中...</div>
+        <div style="font-size: var(--font-sm); color: var(--color-text-secondary);">{{ uploadFileName }}</div>
+      </div>
     </div>
 
     <!-- 历史抽屉 -->
@@ -602,8 +770,40 @@ createApp({
     const showTrade = ref(false);
     const tradeForm = reactive({ bizType: 'RECHARGE', amount: 100, idCardNo: '', remark: '' });
     const waitInfo = reactive({ position: 0, estimateSeconds: 0 });
+    const showEmoji = ref(false);
+    const emojiTab = ref('face');
+    const uploading = ref(false);
+    const uploadFileName = ref('');
     let stompClient = null;
     let waitTimer = null;
+
+    // Emoji 数据集（轻量内置）
+    const emojiList = reactive({
+      face: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥'],
+      gesture: ['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🦷','🦴','👀','👁','👅','👄','💋'],
+      heart: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣','💕','💞','💓','💗','💖','💘','💝','💟','♥','💌','💋','😻','💑','💏'],
+      symbol: ['✅','❌','⭐','🌟','💫','✨','🎉','🎊','🎁','🎈','🔥','💯','💢','💥','💦','💨','🕐','📌','📍','📎','🔗','🔒','🔓','🔑','⚡','☀','🌙','⛅','☔','❄','⛄','🌈']
+    });
+
+    function toggleEmoji() { showEmoji.value = !showEmoji.value; }
+    function insertEmoji(e) {
+      text.value = (text.value || '') + e;
+      // 保持面板打开以便连续输入
+    }
+    function fileEmoji(mime) {
+      if (!mime) return '📄';
+      if (mime.includes('pdf')) return '📕';
+      if (mime.includes('word')) return '📘';
+      if (mime.includes('sheet') || mime.includes('excel')) return '📗';
+      if (mime.includes('image')) return '🖼';
+      return '📄';
+    }
+    function formatSize(b) {
+      if (!b) return '';
+      if (b < 1024) return b + ' B';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+      return (b / 1024 / 1024).toFixed(2) + ' MB';
+    }
 
     const statusText = computed(() => {
       const map = { ROBOT: '🤖 智能', QUEUED: '⏳ 排队', IN_SESSION: '🟢 通话', TRADE_CHECKING: '⏳ 核查', ENDED: '已结束' };
@@ -729,6 +929,33 @@ createApp({
       }
     }
 
+    async function uploadFile(e) {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || !session.value) return;
+      if (file.size > 20 * 1024 * 1024) { alert('文件不能超过 20MB'); return; }
+
+      uploading.value = true;
+      uploadFileName.value = file.name;
+
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('sessionId', session.value.id);
+      try {
+        const r = await fetch('/im/upload/file', { method: 'POST', headers: authHeader(), body: fd });
+        const d = await r.json();
+        if (d.code) {
+          alert('上传失败: ' + d.msg);
+        }
+        // 成功消息由后端 WS 广播，不需要本地 push
+      } catch (err) {
+        alert('上传异常: ' + err.message);
+      } finally {
+        uploading.value = false;
+        uploadFileName.value = '';
+      }
+    }
+
     async function openHistory() {
       showHistory.value = true;
       const r = await fetch('/im/customer/sessions', { headers: authHeader() });
@@ -788,6 +1015,11 @@ createApp({
         messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: env.payload, ts: env.ts });
         scrollBottom();
       }
+      if (env.type === 'FILE') {
+        const p = env.payload || {};
+        messages.value.push({ fromRole: env.fromRole, content: env.content, type: 'RICH', payload: { type: p.contentType || 'FILE', url: p.url, originalName: p.originalName, mimeType: p.mimeType, size: p.size }, ts: env.ts });
+        scrollBottom();
+      }
     }
 
     function scrollBottom() {
@@ -811,9 +1043,11 @@ createApp({
       authed, token, customerId, session, messages, text, msgList,
       showHistory, history, showHistoryDetail, historyDetailSession, historyMessages,
       showTrade, tradeForm, waitInfo,
+      showEmoji, emojiTab, emojiList, uploading, uploadFileName, window,
       statusText, statusClass,
       silentLogin, sendText, quickQuery, transferToAgent, customerHangup,
       openTrade, submitTrade, openHistory, viewHistory,
+      toggleEmoji, insertEmoji, uploadFile, fileEmoji, formatSize,
       avatarEmoji, avatarClass, roleLabel, statusLabel, statusBadge, formatTime
     };
   }
