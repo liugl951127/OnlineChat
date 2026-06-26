@@ -3,6 +3,7 @@ package com.example.auth.controller;
 import com.example.auth.service.AuthService;
 import com.example.common.ApiException;
 import com.example.common.ApiResponse;
+import com.example.common.security.CsrfTokenIssuer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final CsrfTokenIssuer csrfIssuer;
 
     // ============ 客户：静默 / OAuth ============
     @PostMapping("/silent-login")
@@ -114,9 +116,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<Map<String, Object>> loginByPassword(@RequestBody LoginReq req,
-                                                              HttpServletRequest http) {
-        return ApiResponse.ok(authService.loginByPassword(req.getUsername(), req.getPassword(),
-                clientIp(http)));
+                                                              HttpServletRequest http,
+                                                              HttpServletResponse resp) {
+        Map<String, Object> body = authService.loginByPassword(req.getUsername(), req.getPassword(),
+                clientIp(http));
+        body.put("csrf", csrfIssuer.issue(resp));  // 登录成功下发 CSRF Token（Cookie + 响应体）
+        return ApiResponse.ok(body);
     }
 
     // ============ 手机号 + 验证码 ============
@@ -126,17 +131,23 @@ public class AuthController {
     }
 
     @PostMapping("/login-phone")
-    public ApiResponse<Map<String, Object>> loginByPhone(@RequestBody PhoneLoginReq req) {
-        return ApiResponse.ok(authService.loginByPhone(req.getPhone(), req.getCode()));
+    public ApiResponse<Map<String, Object>> loginByPhone(@RequestBody PhoneLoginReq req,
+                                                           HttpServletResponse resp) {
+        Map<String, Object> body = authService.loginByPhone(req.getPhone(), req.getCode());
+        body.put("csrf", csrfIssuer.issue(resp));
+        return ApiResponse.ok(body);
     }
 
     // ============ 管理员 ============
     @PostMapping("/admin/login")
-    public ApiResponse<Map<String, Object>> adminLogin(@RequestBody LoginReq req) {
+    public ApiResponse<Map<String, Object>> adminLogin(@RequestBody LoginReq req,
+                                                         HttpServletResponse resp) {
         if (req.getUsername() == null || req.getPassword() == null) {
             throw new ApiException(400, "账号/密码必填");
         }
-        return ApiResponse.ok(authService.adminLogin(req.getUsername(), req.getPassword()));
+        Map<String, Object> body = authService.adminLogin(req.getUsername(), req.getPassword());
+        body.put("csrf", csrfIssuer.issue(resp));
+        return ApiResponse.ok(body);
     }
 
     @PostMapping("/refresh")

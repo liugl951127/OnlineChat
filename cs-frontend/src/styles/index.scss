@@ -1,0 +1,90 @@
+// ============ Element Plus 主题覆盖 ============
+:root {
+  --el-color-primary: #1677ff;
+  --el-color-primary-light-3: #4096ff;
+  --el-color-primary-light-5: #69b1ff;
+  --el-color-primary-light-7: #91caff;
+  --el-color-primary-light-8: #bae0ff;
+  --el-color-primary-light-9: #e6f4ff;
+  --el-color-success: #52c41a;
+  --el-color-warning: #faad14;
+  --el-color-danger: #ff4d4f;
+  --el-color-error: #ff4d4f;
+  --el-color-info: #909399;
+  --el-border-radius-base: 8px;
+}
+
+// ============ 全局重置 ============
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f5f7fa;
+  color: #1f2329;
+}
+
+// 禁止文本选择（仅装饰性元素）
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+// 安全滚动条
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+// ============ 工具类 ============
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.full { width: 100%; height: 100%; }
+.text-muted { color: #86909c; }
+.text-sm { font-size: 12px; }
+
+// ============ 消息气泡 ============
+.msg-bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  word-break: break-word;
+  line-height: 1.5;
+  position: relative;
+}
+.msg-mine {
+  background: #1677ff;
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+.msg-other {
+  background: #fff;
+  color: #1f2329;
+  border-bottom-left-radius: 2px;
+  border: 1px solid #e5e6eb;
+}
+
+// ============ 动画 ============
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
