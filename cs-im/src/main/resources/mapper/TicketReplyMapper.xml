@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.TicketReplyMapper">
+
+    <resultMap id="BaseMap" type="com.example.im.domain.TicketReply">
+        <id     property="id"             column="id"/>
+        <result property="ticketId"       column="ticket_id"/>
+        <result property="fromUser"       column="from_user"/>
+        <result property="fromRole"       column="from_role"/>
+        <result property="content"        column="content"/>
+        <result property="attachmentUrl"  column="attachment_url"/>
+        <result property="createdAt"      column="created_at"/>
+    </resultMap>
+
+    <select id="findByTicketIdOrderByIdAsc" resultMap="BaseMap">
+        SELECT * FROM ticket_reply WHERE ticket_id = #{ticketId} AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY id ASC
+    </select>
+
+</mapper>

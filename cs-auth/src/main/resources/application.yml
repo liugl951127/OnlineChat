@@ -70,7 +70,7 @@ spring:
 
 cs:
   jwt:
-    secret: default-jwt-secret-change-me-in-production-32-chars-min
+    secret: ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK
     ttl-ms: 86400000
   sms:
     mock: true

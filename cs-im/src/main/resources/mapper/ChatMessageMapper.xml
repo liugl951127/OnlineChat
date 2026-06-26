@@ -1,9 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.im.repo.ChatMessageMapper">
-    <select id="findBySessionIdOrderByIdAsc" resultType="com.example.im.domain.ChatMessage">
-        SELECT * FROM chat_message
+
+    <!-- 通用 ResultMap -->
+    <resultMap id="BaseMap" type="com.example.im.domain.ChatMessage">
+        <id     property="id"          column="id"/>
+        <result property="sessionId"   column="session_id"/>
+        <result property="fromUser"    column="from_user"/>
+        <result property="fromRole"    column="from_role"/>
+        <result property="type"        column="type"/>
+        <result property="content"     column="content"/>
+        <result property="signature"   column="signature"/>
+        <result property="replyToId"   column="reply_to_id"/>
+        <result property="recalled"    column="recalled"/>
+        <result property="recalledAt"  column="recalled_at"/>
+        <result property="recalledBy"  column="recalled_by"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <!-- 1. 按会话 ID 查全部消息（升序） -->
+    <select id="findBySessionIdOrderByIdAsc" resultMap="BaseMap">
+        SELECT id, session_id, from_user, from_role, type, content,
+               signature, reply_to_id, recalled, recalled_at, recalled_by, created_at
+        FROM chat_message
         WHERE session_id = #{sessionId}
+          AND (deleted = 0 OR deleted IS NULL)
         ORDER BY id ASC
     </select>
+
+    <!-- 2. 实时拉取：ID > lastId（升序） -->
+    <select id="findBySessionIdAfter" resultMap="BaseMap">
+        SELECT id, session_id, from_user, from_role, type, content,
+               signature, reply_to_id, recalled, recalled_at, recalled_by, created_at
+        FROM chat_message
+        WHERE session_id = #{sessionId}
+          AND id &gt; #{lastId}
+          AND (deleted = 0 OR deleted IS NULL)
+        ORDER BY id ASC
+        LIMIT 100
+    </select>
+
+    <!-- 3. 时间范围查询（视频回溯） -->
+    <select id="findBySessionIdAndTimeRange" resultMap="BaseMap">
+        SELECT id, session_id, from_user, from_role, type, content,
+               signature, reply_to_id, recalled, recalled_at, recalled_by, created_at
+        FROM chat_message
+        WHERE session_id = #{sessionId}
+          AND (deleted = 0 OR deleted IS NULL)
+        <if test="startTime != null and startTime != ''">
+            AND created_at &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY created_at ASC, id ASC
+        LIMIT 1000
+    </select>
+
 </mapper>

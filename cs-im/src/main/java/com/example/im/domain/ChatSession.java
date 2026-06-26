@@ -28,4 +28,6 @@ public class ChatSession {
     private String endedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 视频回放 URL（v1.9.0） */
+    private String videoReplayUrl;
 }

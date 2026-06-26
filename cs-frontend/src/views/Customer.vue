@@ -1,11 +1,16 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { im, robot } from '@/api'
+import { im, robot, ticket, faq as faqApi, replay } from '@/api'
 import { useUserStore } from '@/store/user'
 import { formatTime, safeText, debounce } from '@/utils'
+import KnowledgeBase from '@/components/KnowledgeBase.vue'
+import TicketPanel from '@/components/TicketPanel.vue'
+import ReplayPanel from '@/components/ReplayPanel.vue'
 
 const user = useUserStore()
+
+// ============ 消息流（WebSocket 实时 + 历史） ============
 const messages = ref([])
 const inputText = ref('')
 const messagesRef = ref(null)
@@ -14,9 +19,25 @@ const sessionId = ref('')
 const stompClient = ref(null)
 const connected = ref(false)
 const showEmoji = ref(false)
-const uploadRef = ref(null)
 const recallTimers = ref({}) // msgId -> countdown
 
+// ============ 会话状态 ============
+const sessionInfo = ref(null)          // ChatSession 对象
+const hasAgent = ref(false)             // 是否有坐席在线
+const agentName = ref('')               // 当前坐席
+const statusTip = ref('正在加载...')
+
+// ============ 离线消息（首屏拉一次） ============
+const offlineCount = ref(0)
+const offlineMsgs = ref([])
+
+// ============ 面板开关（KB / 工单 / 回放） ============
+const showKB = ref(false)
+const showTickets = ref(false)
+const showReplay = ref(false)
+const replaySessionId = ref(null)
+
+// ============ 快捷回复 ============
 const quickReplies = [
   '我想咨询一下产品',
   '账单有疑问',
@@ -26,18 +47,18 @@ const quickReplies = [
   '投诉建议'
 ]
 
+// ============ 生命周期 ============
 onMounted(async () => {
-  sessionId.value = 'c-' + Math.random().toString(36).slice(2, 12)
+  await loadSession()
   await connectWS()
   await loadHistory()
+  await loadOffline()
 })
 
 onUnmounted(() => disconnectWS())
 
+// ============ WebSocket（实时聊天） ============
 async function connectWS() {
-  // WebSocket 防注入：仅允许 wss/ws + 同源
-  const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') +
-                location.host + '/ws/im?token=' + encodeURIComponent(user.token)
   try {
     const SockJS = (await import('sockjs-client')).default
     const Stomp = (await import('stompjs')).default
@@ -46,18 +67,51 @@ async function connectWS() {
     stompClient.value.debug = null
     stompClient.value.connect({ Authorization: 'Bearer ' + user.token }, frame => {
       connected.value = true
+      // 订阅客户频道（接收坐席回复 + 系统消息）
       stompClient.value.subscribe('/user/queue/messages', msg => {
         try {
           const data = JSON.parse(msg.body)
-          // 防 XSS：清理消息内容
           data.text = safeText(data.text)
-          messages.value.push(data)
-          nextTick(scrollToBottom)
+          // 状态消息：更新会话状态
+          if (data.type === 'AGENT_JOINED') {
+            hasAgent.value = true
+            agentName.value = data.agentUsername
+            statusTip.value = `坐席 ${agentName.value} 正在为你服务`
+            ElMessage.success(`坐席 ${agentName.value} 已接入`)
+          } else if (data.type === 'AGENT_LEFT') {
+            hasAgent.value = false
+            agentName.value = ''
+            statusTip.value = '坐席已离开，请稍候或转接其他人'
+          } else if (data.type === 'ENDED') {
+            hasAgent.value = false
+            statusTip.value = '会话已结束'
+          }
+          // 正常消息
+          if (data.text || data.content) {
+            messages.value.push(data)
+            nextTick(scrollToBottom)
+          }
         } catch (e) { console.error('Parse error', e) }
+      })
+      // 订阅离线消息（重连后批量推送）
+      stompClient.value.subscribe('/user/queue/offline', msg => {
+        try {
+          const data = JSON.parse(msg.body)
+          if (Array.isArray(data.messages) && data.messages.length > 0) {
+            data.messages.forEach(m => {
+              m.text = safeText(m.content)
+              m.fromName = m.fromRole === 'AGENT' ? (agentName.value || '坐席') : '系统'
+              messages.value.push(m)
+            })
+            nextTick(scrollToBottom)
+            ElMessage.info(`收到 ${data.messages.length} 条离线消息`)
+          }
+        } catch (e) {}
       })
     }, err => {
       connected.value = false
-      setTimeout(connectWS, 3000) // 自动重连
+      // 自动重连（间隔 3 秒）
+      setTimeout(connectWS, 3000)
     })
   } catch (e) {
     console.error('WS load failed', e)
@@ -68,26 +122,78 @@ function disconnectWS() {
   try { stompClient.value?.disconnect() } catch {}
 }
 
+// ============ 历史/会话/离线消息 ============
+async function loadSession() {
+  try {
+    const { data } = await im.activeSession()
+    sessionInfo.value = data
+    sessionId.value = data.id
+    updateStatusFromSession(data)
+  } catch (e) {
+    ElMessage.error('加载会话失败')
+  }
+}
+
+function updateStatusFromSession(s) {
+  if (!s) return
+  if (s.status === 'IN_SESSION' && s.agentUsername) {
+    hasAgent.value = true
+    agentName.value = s.agentUsername
+    statusTip.value = `坐席 ${s.agentUsername} 正在为你服务`
+  } else if (s.status === 'QUEUED') {
+    hasAgent.value = false
+    statusTip.value = '正在为你排队等待坐席...'
+  } else if (s.status === 'ENDED') {
+    hasAgent.value = false
+    statusTip.value = '会话已结束'
+  } else {
+    hasAgent.value = false
+    statusTip.value = '当前无坐席在线（智能客服模式）'
+  }
+}
+
 async function loadHistory() {
+  if (!sessionId.value) return
   try {
     const { data } = await im.history(sessionId.value)
     if (Array.isArray(data)) {
-      data.forEach(m => m.text = safeText(m.text))
+      data.forEach(m => m.text = safeText(m.text || m.content))
       messages.value = data
       nextTick(scrollToBottom)
     }
   } catch {}
 }
 
+async function loadOffline() {
+  if (!sessionId.value) return
+  try {
+    const { data } = await im.drainOffline(sessionId.value)
+    offlineMsgs.value = data || []
+    offlineCount.value = offlineMsgs.value.length
+    if (offlineCount.value > 0) {
+      // 把离线消息追加到消息流
+      offlineMsgs.value.forEach(m => {
+        m.text = safeText(m.content)
+        m.fromName = m.fromRole === 'AGENT' ? (agentName.value || '坐席') : '系统'
+      })
+      messages.value.push(...offlineMsgs.value)
+      nextTick(scrollToBottom)
+      ElMessage.info(`已加载 ${offlineCount.value} 条离线消息`)
+    }
+  } catch {}
+}
+
+// ============ 发送消息 ============
 async function send(textOverride) {
   const text = textOverride ?? inputText.value.trim()
   if (!text || text.length > 2000) {
     if (text.length > 2000) ElMessage.warning('消息过长')
     return
   }
-  // 防 XSS：清理后再发送
   const cleanText = safeText(text)
   sending.value = true
+
+  // 乐观添加到 UI
   const msg = {
     id: 'm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
     sessionId: sessionId.value,
@@ -102,43 +208,78 @@ async function send(textOverride) {
   inputText.value = ''
   showEmoji.value = false
   nextTick(scrollToBottom)
+
+  // 通过 WebSocket 发送（v1.9.0：WS 实时）
   try {
-    await im.send({ sessionId: sessionId.value, text: cleanText, type: 'text' })
-  } catch {} finally {
+    if (stompClient.value && connected.value) {
+      stompClient.value.send('/app/customer/chat', {}, JSON.stringify({
+        sessionId: Number(sessionId.value),
+        text: cleanText,
+        type: 'TEXT'
+      }))
+    } else {
+      // WS 未连接 → 降级 REST
+      await im.send({ sessionId: Number(sessionId.value), content: cleanText, type: 'TEXT' })
+      ElMessage.warning('连接断开，消息通过离线通道发送')
+    }
+  } catch (e) {
+    ElMessage.error('发送失败')
+  } finally {
     sending.value = false
   }
 }
 
+// ============ 智能客服（机器人） ============
 async function askRobot() {
   if (!inputText.value.trim()) return
   sending.value = true
   const q = inputText.value.trim()
-  const msg = { id: 'r-' + Date.now(), from: 'me', fromName: '我', text: q, type: 'text', time: Date.now(), mine: true }
-  messages.value.push(msg)
+  const cleanQ = safeText(q)
+
+  // 客户消息
+  messages.value.push({
+    id: 'r-' + Date.now(), from: 'me', fromName: '我',
+    text: cleanQ, type: 'text', time: Date.now(), mine: true
+  })
   inputText.value = ''
   nextTick(scrollToBottom)
+
   try {
-    const { data } = await robot.ask(q, sessionId.value)
+    const { data } = await robot.ask(cleanQ, sessionId.value)
     messages.value.push({
       id: 'rb-' + Date.now(),
-      from: 'robot',
-      fromName: '智能客服',
-      text: safeText(data?.answer || '抱歉，我没理解您的问题'),
-      type: 'robot',
-      time: Date.now()
+      from: 'robot', fromName: '智能客服',
+      text: safeText(data?.text || '抱歉，我没理解您的问题'),
+      type: 'robot', time: Date.now()
     })
     nextTick(scrollToBottom)
-  } catch {} finally {
+  } catch (e) {
+    ElMessage.error('智能客服暂时不可用')
+  } finally {
     sending.value = false
   }
 }
 
+// ============ 转人工 ============
+async function transferToAgent() {
+  try {
+    const { data } = await im.transferToAgent()
+    sessionInfo.value = data
+    updateStatusFromSession(data)
+    ElMessage.success('已为你排队，正在呼叫坐席...')
+  } catch (e) {
+    ElMessage.error('转人工失败')
+  }
+}
+
+// ============ 滚动到底部 ============
 function scrollToBottom() {
   if (messagesRef.value) {
     messagesRef.value.scrollTop = messagesRef.value.scrollHeight
   }
 }
 
+// ============ 表情 + 上传 + 撤回 + 反应 ============
 const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠']
 
 function insertEmoji(e) {
@@ -146,23 +287,12 @@ function insertEmoji(e) {
 }
 
 async function handleUpload(file) {
-  // 前端校验：大小 + 类型 + 扩展名
   const allowTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf']
   const maxSize = 5 * 1024 * 1024
-  if (file.size > maxSize) {
-    ElMessage.error('文件超过 5MB')
-    return false
-  }
-  if (!allowTypes.includes(file.type)) {
-    ElMessage.error('不支持的文件类型')
-    return false
-  }
+  if (file.size > maxSize) { ElMessage.error('文件超过 5MB'); return false }
+  if (!allowTypes.includes(file.type)) { ElMessage.error('不支持的文件类型'); return false }
   const ext = file.name.split('.').pop().toLowerCase()
-  const allowExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf']
-  if (!allowExts.includes(ext)) {
-    ElMessage.error('不允许的扩展名')
-    return false
-  }
+  if (!['png','jpg','jpeg','gif','webp','pdf'].includes(ext)) { ElMessage.error('不允许的扩展名'); return false }
   try {
     const fd = new FormData()
     fd.append('file', file)
@@ -171,21 +301,17 @@ async function handleUpload(file) {
       id: 'up-' + Date.now(),
       from: 'me', fromName: '我',
       type: data?.mime?.startsWith('image/') ? 'image' : 'file',
-      url: data?.url,
-      name: file.name,
-      size: file.size,
+      url: data?.url, name: file.name, size: file.size,
       time: Date.now(), mine: true
     })
     nextTick(scrollToBottom)
-  } catch (e) { /* 上报已在拦截器 */ }
-  return false // 阻止 ElUpload 默认上传
+  } catch (e) {}
+  return false
 }
 
 async function recall(msg) {
   if (!msg.mine) return
-  if (Date.now() - msg.time > 2 * 60 * 1000) {
-    return ElMessage.warning('超过 2 分钟无法撤回')
-  }
+  if (Date.now() - msg.time > 2 * 60 * 1000) return ElMessage.warning('超过 2 分钟无法撤回')
   await ElMessageBox.confirm('确定撤回这条消息？', '提示')
   try {
     await im.recall(msg.id)
@@ -201,9 +327,19 @@ async function react(msg, emoji) {
   } catch {}
 }
 
-function fileType(mime) {
-  return mime?.startsWith('image/') ? 'image' : 'file'
+// ============ 面板开关 ============
+function openKB() { showKB.value = true }
+function closeKB() { showKB.value = false }
+
+function openTickets() { showTickets.value = true }
+function closeTickets() { showTickets.value = false }
+
+async function openReplay() {
+  if (!sessionId.value) return ElMessage.warning('请先建立会话')
+  replaySessionId.value = Number(sessionId.value)
+  showReplay.value = true
 }
+function closeReplay() { showReplay.value = false }
 </script>
 
 <template>
@@ -213,6 +349,14 @@ function fileType(mime) {
         <div class="logo">💬</div>
         <span>在线客服</span>
       </div>
+
+      <!-- 工具按钮（KB / 工单 / 回放） -->
+      <div class="toolbar-btns">
+        <el-button size="small" text @click="openKB">📚 知识库</el-button>
+        <el-button size="small" text @click="openTickets">🎫 工单</el-button>
+        <el-button size="small" text @click="openReplay">🎬 回放</el-button>
+      </div>
+
       <div class="status">
         <el-tag :type="connected ? 'success' : 'danger'" size="small" effect="dark">
           <el-icon style="vertical-align: -2px"><CircleCheck v-if="connected" /><CircleClose v-else /></el-icon>
@@ -221,6 +365,29 @@ function fileType(mime) {
         <span class="user">{{ user.profile?.name || '访客' }}</span>
       </div>
     </header>
+
+    <!-- 状态条幅：无坐席 / 排队中 / 服务中 -->
+    <div class="status-banner" :class="{
+      'no-agent': !hasAgent && statusTip.includes('无坐席'),
+      'queued': statusTip.includes('排队'),
+      'in-service': hasAgent,
+      'ended': statusTip.includes('结束')
+    }">
+      <span class="banner-icon">{{ hasAgent ? '🎧' : (statusTip.includes('排队') ? '⏳' : (statusTip.includes('结束') ? '🛑' : '🤖')) }}</span>
+      <span class="banner-text">{{ statusTip }}</span>
+      <el-button
+        v-if="!hasAgent && !statusTip.includes('结束') && !statusTip.includes('排队')"
+        type="warning" size="small" round @click="transferToAgent"
+      >
+        转人工坐席
+      </el-button>
+      <el-button
+        v-if="statusTip.includes('排队')"
+        type="info" size="small" round disabled
+      >
+        排队中...
+      </el-button>
+    </div>
 
     <div class="quick-bar">
       <el-button v-for="q in quickReplies" :key="q" size="small" plain @click="send(q)">{{ q }}</el-button>
@@ -238,7 +405,7 @@ function fileType(mime) {
           <div v-if="m.recalled" class="msg-bubble msg-recalled">消息已撤回</div>
           <template v-else>
             <div v-if="m.type === 'text' || m.type === 'robot'" class="msg-bubble" :class="m.mine ? 'msg-mine' : 'msg-other'">
-              {{ m.text }}
+              {{ m.text || m.content }}
             </div>
             <div v-else-if="m.type === 'image'" class="msg-bubble msg-image" :class="m.mine ? 'msg-mine' : 'msg-other'">
               <el-image :src="m.url" :preview-src-list="[m.url]" fit="cover" style="max-width: 200px; border-radius: 8px;" />
@@ -281,6 +448,25 @@ function fileType(mime) {
         <el-button type="primary" :loading="sending" @click="send()">发送</el-button>
       </div>
     </div>
+
+    <!-- KB 知识库弹窗 -->
+    <el-dialog v-model="showKB" title="📚 知识库" width="700px" :show-close="true" @close="closeKB">
+      <KnowledgeBase :customer-id="user.profile?.id" @close="closeKB" />
+    </el-dialog>
+
+    <!-- 工单面板弹窗 -->
+    <el-dialog v-model="showTickets" title="🎫 工单系统" width="800px" :show-close="true" @close="closeTickets">
+      <TicketPanel
+        :customer-id="user.profile?.id"
+        role="CUSTOMER"
+        @close="closeTickets"
+      />
+    </el-dialog>
+
+    <!-- 视频回溯弹窗 -->
+    <el-dialog v-model="showReplay" title="🎬 视频回溯" width="800px" :show-close="true" @close="closeReplay">
+      <ReplayPanel v-if="replaySessionId" :session-id="replaySessionId" @close="closeReplay" />
+    </el-dialog>
   </div>
 </template>
 
@@ -301,11 +487,7 @@ function fileType(mime) {
   border-bottom: 1px solid #e5e6eb;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 
-  .brand {
-    display: flex; align-items: center; gap: 8px;
-    cursor: pointer;
-    font-weight: 600;
-  }
+  .brand { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
   .logo {
     width: 32px; height: 32px;
     background: linear-gradient(135deg, #1677ff 0%, #722ed1 100%);
@@ -313,11 +495,51 @@ function fileType(mime) {
     display: flex; align-items: center; justify-content: center;
     font-size: 16px; color: #fff;
   }
-  .status {
-    display: flex; align-items: center; gap: 12px;
+  .toolbar-btns { display: flex; gap: 4px; }
+  .status { display: flex; align-items: center; gap: 12px; }
+  .user { font-size: 13px; color: #1f2329; }
+}
+
+// ============ 状态条幅 ============
+.status-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 20px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.3s;
+  .banner-icon { font-size: 18px; }
+  .banner-text { flex: 1; }
+
+  // 默认（智能客服模式）
+  background: #f0f5ff;
+  color: #1677ff;
+
+  // 无坐席
+  &.no-agent {
+    background: #fff7e6;
+    color: #d46b08;
+    border-bottom-color: #ffd591;
   }
-  .user {
-    font-size: 13px; color: #1f2329;
+
+  // 排队中
+  &.queued {
+    background: #e6f4ff;
+    color: #1677ff;
+    border-bottom-color: #91caff;
+  }
+
+  // 坐席服务中
+  &.in-service {
+    background: #f6ffed;
+    color: #389e0d;
+    border-bottom-color: #b7eb8f;
+  }
+
+  // 结束
+  &.ended {
+    background: #f5f5f5;
+    color: #86909c;
+    border-bottom-color: #d9d9d9;
   }
 }
 
@@ -327,109 +549,45 @@ function fileType(mime) {
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
   overflow-x: auto;
-
-  .el-button {
-    flex-shrink: 0;
-    font-size: 12px;
-  }
 }
 
 .messages {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
+  background: #f5f7fa;
 }
 
 .msg-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
-  animation: fadeInUp 0.2s ease;
-
-  &.mine {
-    flex-direction: row-reverse;
-  }
-
-  .msg-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-width: 60%;
-  }
-
-  .name {
-    font-size: 11px;
-    color: #86909c;
-    margin-bottom: 2px;
-  }
-
+  margin-bottom: 12px;
+  &.mine { flex-direction: row-reverse; }
+}
+.msg-content {
+  max-width: 70%;
+  .name { font-size: 11px; color: #86909c; margin-bottom: 2px; padding: 0 4px; }
   .msg-bubble {
-    padding: 10px 14px;
-    border-radius: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
     line-height: 1.5;
     word-break: break-word;
-    font-size: 14px;
+    &.msg-mine { background: #1677ff; color: #fff; }
+    &.msg-other { background: #fff; color: #1f2329; }
+    &.msg-recalled { background: #f5f5f5; color: #86909c; font-style: italic; }
   }
-
-  .msg-mine {
-    background: #1677ff;
-    color: #fff;
-    border-bottom-right-radius: 2px;
-  }
-
-  .msg-other {
-    background: #fff;
-    color: #1f2329;
-    border-bottom-left-radius: 2px;
-    border: 1px solid #e5e6eb;
-  }
-
-  .msg-image {
-    padding: 4px;
-    background: transparent !important;
-    border: none !important;
-  }
-
-  .msg-recalled {
-    background: #f5f5f5 !important;
-    color: #86909c !important;
-    font-size: 12px;
-    font-style: italic;
-  }
-
-  .reaction {
-    font-size: 12px;
-    color: #86909c;
-    margin-top: 2px;
-  }
-
-  .actions {
-    font-size: 12px;
-  }
-
-  .time {
-    font-size: 11px;
-    color: #c9cdd4;
-  }
+  .reaction { font-size: 11px; color: #86909c; margin-top: 2px; padding: 0 4px; }
+  .actions { font-size: 11px; margin-top: 2px; padding: 0 4px; }
+  .time { font-size: 10px; color: #c9cdd4; margin-top: 2px; padding: 0 4px; }
 }
 
 .input-bar {
   background: #fff;
   border-top: 1px solid #e5e6eb;
   padding: 8px 20px 12px;
-
-  .toolbar {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 4px;
-  }
-
-  .actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 8px;
-  }
+  .toolbar { display: flex; gap: 4px; margin-bottom: 4px; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 }
 
 .emoji-grid {
@@ -438,17 +596,6 @@ function fileType(mime) {
   gap: 4px;
   max-height: 240px;
   overflow-y: auto;
-
-  .emoji {
-    cursor: pointer;
-    font-size: 22px;
-    padding: 4px;
-    text-align: center;
-    border-radius: 4px;
-
-    &:hover {
-      background: #f5f5f5;
-    }
-  }
+  .emoji { cursor: pointer; font-size: 22px; padding: 4px; text-align: center; border-radius: 4px; &:hover { background: #f5f5f5; } }
 }
 </style>
