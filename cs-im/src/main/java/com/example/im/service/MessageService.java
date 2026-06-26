@@ -75,6 +75,10 @@ public class MessageService {
     @Autowired
     private OfflineMessageStore offlineStore;
 
+    /** AI 助手服务（v2.1.0 客户消息触发实时推荐） */
+    @Autowired
+    private AiAssistantService aiAssistantService;
+
     /**
      * 发送消息（HTTP 实时）
      *
@@ -181,6 +185,21 @@ public class MessageService {
         // 10) 审计
         auditService.log("MESSAGE_SEND", "MESSAGE", String.valueOf(msg.getId()),
                 fromId, fromRole, "session=" + sessionId);
+
+        // 11) v2.1.0 AI 助手 — 客户发消息 → 异步生成推荐话术推送给坐席
+        if ("CUSTOMER".equals(fromRole) && session.getAgentUsername() != null) {
+            try {
+                aiAssistantService.generateSuggestionAsync(
+                    sessionId,
+                    session.getCustomerId(),
+                    session.getAgentUsername(),
+                    msg.getId(),
+                    cleanText
+                );
+            } catch (Exception e) {
+                log.warn("[AI] 触发推荐失败（不影响消息）: {}", e.getMessage());
+            }
+        }
 
         return msg;
     }

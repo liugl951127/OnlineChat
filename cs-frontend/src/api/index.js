@@ -136,6 +136,43 @@ export const wxMini = {
     request.post('/auth/wx-mini/login', { jsCode, encryptedData, iv })
 }
 
+// ============= AI 助手（v2.1.0 新增） =============
+export const ai = {
+  /** 即时生成推荐（同步） */
+  suggest: data => request.post('/im/ai/suggest', data),
+  /** 异步生成 + WS 推送 */
+  suggestAsync: data => request.post('/im/ai/suggest/async', data),
+  /** 坐席反馈 */
+  feedback: data => request.post('/im/ai/feedback', data),
+  /** 坐席历史推荐 */
+  recent: (agentUsername, limit = 20) =>
+    request.get('/im/ai/recent', { params: { agentUsername, limit } }),
+  /** 知识库浏览 */
+  knowledge: (category, limit = 20) =>
+    request.get('/im/ai/knowledge', { params: { category, limit } }),
+  /** 知识库检索 */
+  knowledgeSearch: (q, topK = 5) =>
+    request.get('/im/ai/knowledge/search', { params: { q, topK } }),
+  /** 知识库统计 */
+  knowledgeStats: () => request.get('/im/ai/knowledge/stats')
+}
+
+// ============= 多媒体：WebRTC 屏幕共享 + 语音（v2.1.0） =============
+export const media = {
+  initiateShare: data => request.post('/im/media/screen-share/initiate', data),
+  acceptShare: (shareId, sdpAnswer) =>
+    request.post(`/im/media/screen-share/${shareId}/accept`, { sdpAnswer }),
+  rejectShare: shareId =>
+    request.post(`/im/media/screen-share/${shareId}/reject`),
+  endShare: shareId =>
+    request.post(`/im/media/screen-share/${shareId}/end`),
+  relayIce: (shareId, from, candidate) =>
+    request.post(`/im/media/screen-share/${shareId}/ice`, { from, candidate }),
+  uploadVoice: data => request.post('/im/media/voice/upload', data),
+  listVoice: sessionId =>
+    request.get('/im/media/voice/list', { params: { sessionId } })
+}
+
 // ============= 微信公众号 H5（v2.0.0） =============
 export const wxOaH5 = {
   // 直接跳转到 /auth/wx-oa/h5-entry 即可

@@ -8,6 +8,8 @@ import KnowledgeBase from '@/components/KnowledgeBase.vue'
 import TicketPanel from '@/components/TicketPanel.vue'
 import ReplayPanel from '@/components/ReplayPanel.vue'
 import KycFlow from '@/components/KycFlow.vue'
+import ScreenShare from '@/components/ScreenShare.vue'
+import VoiceRecorder from '@/components/VoiceRecorder.vue'
 
 const user = useUserStore()
 
@@ -17,6 +19,19 @@ const inputText = ref('')
 const messagesRef = ref(null)
 const sending = ref(false)
 const sessionId = ref('')
+
+function onVoiceUploaded(voice) {
+  messages.value.push({
+    id: 'voice-' + voice.id,
+    sessionId: sessionId.value,
+    from: user.profile?.id,
+    fromName: user.profile?.name || '我',
+    text: `[语音 ${voice.durationSec}s]`,
+    type: 'voice',
+    mine: true,
+    time: Date.now()
+  })
+}
 const stompClient = ref(null)
 const connected = ref(false)
 const showEmoji = ref(false)
@@ -68,6 +83,7 @@ async function connectWS() {
     const sock = new SockJS('/ws/im')
     stompClient.value = Stomp.over(sock)
     stompClient.value.debug = null
+    window.__stompClient = stompClient.value
     stompClient.value.connect({ Authorization: 'Bearer ' + user.token }, frame => {
       connected.value = true
       // 订阅客户频道（接收坐席回复 + 系统消息）
@@ -474,6 +490,13 @@ function onKycCompleted() {
         <el-upload :show-file-list="false" :before-upload="handleUpload" :http-request="handleUpload">
           <el-button text :icon="'Upload'" />
         </el-upload>
+        <ScreenShare role="customer"
+          :session-id="sessionId"
+          :agent-username="agentName"
+          :customer-id="user.profile?.id" />
+        <VoiceRecorder :session-id="sessionId"
+          :from-id="user.profile?.id"
+          from-role="CUSTOMER" @uploaded="onVoiceUploaded" />
       </div>
       <el-input v-model="inputText" type="textarea" :rows="2" placeholder="输入消息..." resize="none" maxlength="2000" show-word-limit @keydown.enter.exact.prevent="send()" />
       <div class="actions">

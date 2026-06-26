@@ -4,6 +4,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { im, agent as agentApi, robot } from '@/api'
 import { useUserStore } from '@/store/user'
 import ProductPanel from '@/components/ProductPanel.vue'
+import AiAssistantPanel from '@/components/AiAssistantPanel.vue'
+import ScreenShare from '@/components/ScreenShare.vue'
+import VoiceRecorder from '@/components/VoiceRecorder.vue'
 import { formatTime, safeText, debounce } from '@/utils'
 
 const user = useUserStore()
@@ -70,6 +73,7 @@ async function connectWS() {
     const sock = new SockJS('/ws/im')
     stompClient.value = Stomp.over(sock)
     stompClient.value.debug = null
+    window.__stompClient = stompClient.value  // 暴露给全局组件
     stompClient.value.connect({ Authorization: 'Bearer ' + user.token }, () => {
       connected.value = true
       stompClient.value.subscribe('/user/queue/agent-messages', m => {
@@ -231,6 +235,29 @@ const currentCustomer = computed(() => {
   return s ? { id: s.customerId || s.customerName, name: s.customerName } : null
 })
 
+function onUseAiSuggestion(suggestion) {
+  inputText.value = suggestion.content
+  ElMessage.success('已采纳 AI 推荐到输入框，点击发送即可')
+}
+
+function onUseAiModified(content) {
+  inputText.value = content
+  ElMessage.success('已使用修改版本')
+}
+
+function onVoiceUploaded(voice) {
+  messages.value.push({
+    id: 'voice-' + voice.id,
+    sessionId: activeId.value,
+    from: user.profile?.name,
+    fromName: user.profile?.name || '我',
+    text: `[语音 ${voice.durationSec}s]`,
+    type: 'voice',
+    mine: true,
+    time: Date.now()
+  })
+}
+
 function onPurchased(data) {
   // 购买成功后在聊天中发一条系统消息
   if (data.orderNo && activeId.value) {
@@ -311,6 +338,13 @@ function onPurchased(data) {
           <ProductPanel :customer-id="currentCustomer.id" :agent-username="user.profile?.name" @close="showProductPanel = false" @purchased="onPurchased" />
         </div>
         <div class="messages" ref="messagesRef">
+          <AiAssistantPanel
+            :agent-username="user.profile?.name"
+            :customer-id="currentCustomer?.id"
+            :session-id="activeId"
+            @use="onUseAiSuggestion"
+            @use-modified="onUseAiModified" />
+
           <div v-for="m in messages" :key="m.id" class="msg-row" :class="{ mine: m.mine }">
             <el-avatar :size="36">{{ (m.fromName || '?').slice(0, 1) }}</el-avatar>
             <div class="msg-content">
@@ -353,6 +387,13 @@ function onPurchased(data) {
               <el-button text :icon="'Upload'" />
             </el-upload>
             <el-button text :icon="'ShoppingCart'" @click="showProductPanel = !showProductPanel" title="金融产品购买" />
+            <ScreenShare role="agent"
+              :session-id="activeId"
+              :agent-username="user.profile?.name"
+              :customer-id="currentCustomer?.id" />
+            <VoiceRecorder :session-id="activeId"
+              :from-id="user.profile?.name"
+              from-role="AGENT" @uploaded="onVoiceUploaded" />
             <el-popover :width="320" trigger="click" v-model:visible="showTemplates" title="快捷回复模板">
               <template #reference>
                 <el-button text :icon="'ChatLineSquare'" />
