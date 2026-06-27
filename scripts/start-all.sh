@@ -56,6 +56,9 @@ start_one cs-gateway cs-gateway/target/cs-gateway-1.7.1.jar \
 
 start_one cs-auth cs-auth/target/cs-auth-1.7.1.jar "--spring.profiles.active=dev"
 
+# 等 cs-auth 完全就绪后再起 cs-im （避免启动初期 Connection refused）
+bash "$(dirname "$0")/wait-ready.sh" http://127.0.0.1:9001 120
+
 start_one cs-im cs-im/target/cs-im-1.7.1.jar "--spring.profiles.active=dev"
 
 start_one cs-message cs-message/target/cs-message-1.7.1.jar "--spring.profiles.active=dev"
