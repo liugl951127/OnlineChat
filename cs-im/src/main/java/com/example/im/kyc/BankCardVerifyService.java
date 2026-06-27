@@ -1,6 +1,7 @@
 package com.example.im.kyc;
 
 import com.example.common.ApiException;
+import com.example.im.kyc.tencent.TencentBankCard4Client;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class BankCardVerifyService {
     private static final Random RND = new Random();
 
     private final KycMockProperties mockProps;
+    private final TencentBankCard4Client tencentBank4Client;
 
     public Map<String, Object> verify4Elements(String cardNo, String cardName, String idCardNo, String mobile) {
         if (mockProps.isBankCard()) {
@@ -56,20 +58,9 @@ public class BankCardVerifyService {
     }
 
     private Map<String, Object> verifyReal(String cardNo, String cardName, String idCardNo, String mobile) {
-        log.info("[BankCard-Real] 银联四要素鉴权 cardNo={}", maskCard(cardNo));
+        log.info("[BankCard-Real] 腾讯云四要素鉴权 cardNo={}", maskCard(cardNo));
 
-        // 生产实现：银联 UnionPayClient.verify4Elements()
-        // UnionPayClient client = new UnionPayClient(merchantId, certPath, certPwd);
-        // Verify4ElementsRequest req = new Verify4ElementsRequest(cardNo, cardName, idCardNo, mobile);
-        // Verify4ElementsResponse resp = client.verify(req);
-        // return Map.of(
-        //     "verified", resp.isVerified(),
-        //     "bankCode", resp.getBankCode(),
-        //     "bankName", resp.getBankName(),
-        //     "cardType", resp.getCardType()
-        // );
-
-        throw new ApiException(501, "银行卡四要素真实 API 未配置：请实现 BankCardVerifyService.verifyReal() 或将 kyc.mock.bank-card 改为 true");
+        return tencentBank4Client.verify4Element(cardNo, cardName, idCardNo, mobile);
     }
 
     // ---- 脱敏工具 ----

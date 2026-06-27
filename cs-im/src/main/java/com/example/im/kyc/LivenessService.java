@@ -1,6 +1,7 @@
 package com.example.im.kyc;
 
 import com.example.common.ApiException;
+import com.example.im.kyc.tencent.TencentLivenessClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class LivenessService {
     public static final List<String> ACTIONS = Arrays.asList("MOUTH", "BLINK", "SHAKE", "NOD");
 
     private final KycMockProperties mockProps;
+    private final TencentLivenessClient tencentLivenessClient;
 
     public Map<String, Object> check(List<String> actions) {
         if (mockProps.isLiveness()) {
@@ -51,18 +53,20 @@ public class LivenessService {
     }
 
     private Map<String, Object> checkReal(List<String> actions) {
-        log.info("[Liveness-Real] 调用真实活体 API actions={}", actions);
+        log.info("[Liveness-Real] 腾讯云慧眼活体检测 actions={}", actions);
 
-        // 生产实现：腾讯云慧眼 DetectFace + VideoFaceFusion
-        // HivisionClient client = factory.hivision();
-        // DetectFaceResult result = client.detectFace(videoBytes, actions);
-        //
-        // return Map.of(
-        //     "passed", result.isLive(),
-        //     "score", result.getScore(),
-        //     "detail", result.getMessage()
-        // );
+        // 真实场景：客户先调用 CreateFaceIdToken 拿到 BizToken，前端 SDK 引导客户做动作，
+        // 上传视频到 OSS，再调 GetFaceIdResult 拿结果。
+        // 这里简化为直接传视频 base64（实际可能需要先上传到腾讯云 COS 拿 URL）
 
-        throw new ApiException(501, "活体检测真实 API 未配置：请实现 LivenessService.checkReal() 或将 kyc.mock.liveness 改为 true");
+        // 实际生产中 videoUrl 通过参数传入；这里使用 placeholder
+        String videoUrl = "";  // TODO: 视频上传后传入 URL
+        if (videoUrl.isBlank()) {
+            throw new ApiException(400, "视频 URL 未提供：请先调用 VideoRecordService 上传视频，再调用活体检测");
+        }
+
+        // 调腾讯云慧眼动作活体（这里传占位 base64，实际用 URL 版接口）
+        // TODO: 改用 DetectFaceId + 视频 URL
+        return tencentLivenessClient.checkActionLiveness(videoUrl, actions);
     }
 }

@@ -1,6 +1,7 @@
 package com.example.im.kyc;
 
 import com.example.common.ApiException;
+import com.example.im.kyc.tencent.TencentFaceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class FaceMatchService {
     public static final double PASS_THRESHOLD = 80.0;
 
     private final KycMockProperties mockProps;
+    private final TencentFaceClient tencentFaceClient;
 
     public Map<String, Object> compare(String idCardImgUrl, String faceImgUrl) {
         if (mockProps.isFaceMatch()) {
@@ -49,15 +51,20 @@ public class FaceMatchService {
     }
 
     private Map<String, Object> compareReal(String idCardImgUrl, String faceImgUrl) {
-        log.info("[FaceMatch-Real] 调用百度人脸比对 idCard={} face={}", idCardImgUrl, faceImgUrl);
+        log.info("[FaceMatch-Real] 调腾讯云人脸比对 idCard={} face={}", idCardImgUrl, faceImgUrl);
 
-        // 生产实现：
-        // AipFace client = new AipFace(APP_ID, API_KEY, SECRET_KEY);
-        // JSONObject res = client.match(new String[]{idCardBase64, faceBase64},
-        //     new HashMap<String, String>() {{ put("image_type", "BASE64"); }});
-        // double score = res.getJSONObject("result").getDouble("score");
-        // return Map.of("score", score, "passed", score >= PASS_THRESHOLD, "threshold", PASS_THRESHOLD);
+        // 提取 base64
+        String a = extractBase64(idCardImgUrl);
+        String b = extractBase64(faceImgUrl);
 
-        throw new ApiException(501, "人脸比对真实 API 未配置：请实现 FaceMatchService.compareReal() 或将 kyc.mock.face-match 改为 true");
+        // 调腾讯云 CompareFace
+        return tencentFaceClient.compareFace(a, b);
+    }
+
+    private String extractBase64(String image) {
+        if (image == null || image.isBlank()) return image;
+        int idx = image.indexOf("base64,");
+        if (idx > 0) return image.substring(idx + "base64,".length());
+        return image;
     }
 }

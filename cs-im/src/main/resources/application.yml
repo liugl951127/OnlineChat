@@ -164,3 +164,17 @@ baidu:
     endpoint: https://aip.baidubce.com/rest/2.0/face/v3
     timeout-ms: 5000
     match-threshold: 80
+
+# 腾讯云 AI 配置（v2.2.0 人脸 + 活体 + 银行卡四要素）
+tencent:
+  ai:
+    secret-id: ${TENCENT_SECRET_ID:demo-secret-id}
+    secret-key: ${TENCENT_SECRET_KEY:demo-secret-key}
+    region: ap-guangzhou
+    endpoint: iai.tencentcloudapi.com
+  face:
+    match-threshold: 80
+  liveness:
+    timeout-ms: 10000
+  bank-card4:
+    endpoint: cpdp.tencentcloudapi.com
