@@ -125,13 +125,23 @@ done
 
 # ========== 8. 检查路由 lb:// 支持 ==========
 echo
-echo "[8/6] 检查 cs-gateway 路由支持环境变量切换"
+echo "[8/6] 检查 cs-gateway 路由硬编码 (v2.2.45 设计)"
 GATEWAY_YML="cs-gateway/src/main/resources/application.yml"
-if grep -q "CS_AUTH_URI:.*lb://\|CS_AUTH_URI:.*http://" "$GATEWAY_YML"; then
-    ok "cs-gateway routes 用环境变量切换"
-    grep "CS_AUTH_URI\|CS_IM_URI\|CS_MESSAGE_URI" "$GATEWAY_YML" | head -5
+HARDCODED_OK=true
+for port in 9001 9002 9003 9004 9005; do
+    if ! grep -q "uri: http://localhost:$port" "$GATEWAY_YML"; then
+        HARDCODED_OK=false
+        fail "cs-gateway routes 缺 http://localhost:$port 硬编码"
+    fi
+done
+if [ "$HARDCODED_OK" = true ]; then
+    ok "cs-gateway routes 全部硬编码 http://localhost:{port} (不依赖 nacos lb)"
+fi
+# 确认没环境变量
+if grep -qE 'CS_(AUTH|IM|MESSAGE|ROBOT|TRADE)_URI' "$GATEWAY_YML"; then
+    fail "cs-gateway routes 还有 CS_*_URI 环境变量 (应硬编码)"
 else
-    fail "cs-gateway routes 未配置环境变量"
+    ok "cs-gateway routes 无环境变量 (稳定优先)"
 fi
 
 # ========== 汇总 ==========

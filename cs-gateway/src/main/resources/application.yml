@@ -12,52 +12,46 @@ spring:
     web-application-type: reactive
   # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
   cloud:
-    nacos:
-      discovery:
-        locator:
-          # 开启 lb://cs-auth 自动跳到 nacos 注册的 cs-auth 服务 (v2.2.44)
-          enabled: ${GATEWAY_LB_ENABLED:false}
-          lower-case-service-id: true
     gateway:
-      # dev profile 用直连 http（不用 lb:// 服务发现）
-      # v2.2.44: 默认 http:// 本地直连 (sandbox 演示)
-      #    生产配 GATEWAY_LB_ENABLED=true + Nacos discovery 启用自动 lb://cs-auth
+      # v2.2.45: 路由硬编码 http://localhost: 直连，不受 nacos/环境变量影响
+      #  所有服务同时通过 @EnableDiscoveryClient + nacos-discovery 注册到 nacos
+      #  用于服务发现 / 健康监控 / OpenAPI 发现, 但 gateway 转发仍走直连
       routes:
         - id: cs-auth
-          uri: ${CS_AUTH_URI:http://localhost:9001}
+          uri: http://localhost:9001
           predicates:
             - Path=/auth/**,/auth/actuator/**,/api/auth/**
         - id: cs-robot
-          uri: ${CS_ROBOT_URI:http://localhost:9002}
+          uri: http://localhost:9002
           predicates:
             - Path=/robot/**
         - id: cs-im
-          uri: ${CS_IM_URI:http://localhost:9003}
+          uri: http://localhost:9003
           predicates:
             - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
         - id: cs-trade
-          uri: ${CS_TRADE_URI:http://localhost:9004}
+          uri: http://localhost:9004
           predicates:
             - Path=/trade/**
         - id: cs-message
-          uri: ${CS_MESSAGE_URI:http://localhost:9005}
+          uri: http://localhost:9005
           predicates:
             - Path=/message/**,/api/message/**
         # Actuator 健康检查路径转发（供 K8s liveness/readiness 探针 + Prometheus 抓取）
         - id: auth-health
-          uri: ${CS_AUTH_URI:http://localhost:9001}
+          uri: http://localhost:9001
           predicates:
             - Path=/actuator/auth/**
           filters:
             - StripPrefix=1
         - id: im-health
-          uri: ${CS_IM_URI:http://localhost:9003}
+          uri: http://localhost:9003
           predicates:
             - Path=/actuator/im/**
           filters:
             - StripPrefix=1
         - id: message-health
-          uri: ${CS_MESSAGE_URI:http://localhost:9005}
+          uri: http://localhost:9005
           predicates:
             - Path=/actuator/message/**,/message/actuator/**
           filters:
