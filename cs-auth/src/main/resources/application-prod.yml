@@ -22,7 +22,7 @@ spring:
         namespace: ${NACOS_NAMESPACE:prod}
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:cs_auth}?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:cs_auth}?useUnicode=true&characterEncoding=utf8&useSSL=${DB_USE_SSL:true}&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:please-change-in-production}
     driver-class-name: com.mysql.cj.jdbc.Driver

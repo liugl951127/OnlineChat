@@ -1,0 +1,119 @@
+# 生产直连模式（无 Nacos 也能跑）
+# 用法：java -jar cs-gateway-1.7.1.jar --spring.profiles.active=prod-direct
+#
+# 与 application-prod.yml 区别：
+# - routes 用 http://localhost 直连（不用 lb:// 服务发现）
+# - nacos.discovery.enabled = false（不连 Nacos）
+# - nacos.config.enabled = false（不从 Nacos 拉配置）
+# - 保留生产级的 actuator / Redis pool / tomcat 调优
+#
+# 适用场景：
+# - 单机部署
+# - 没有 Nacos 的简化生产环境
+# - 测试生产包（不打 Nacos 也能验证功能）
+
+server:
+  port: 9000
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
+  tomcat:
+    max-threads: 400
+    accept-count: 200
+
+spring:
+  application:
+    name: cs-gateway
+  main:
+    web-application-type: reactive
+  # 不连 Nacos（直连模式）
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        server-addr: ${NACOS_ADDR:localhost:8848}
+    gateway:
+      # 直连模式（无 lb://，用 http:// + 端口）
+      routes:
+        - id: cs-auth
+          uri: http://${CS_AUTH_HOST:127.0.0.1}:${CS_AUTH_PORT:9001}
+          predicates:
+            - Path=/auth/**,/auth/actuator/**,/api/auth/**
+        - id: cs-robot
+          uri: http://${CS_ROBOT_HOST:127.0.0.1}:${CS_ROBOT_PORT:9002}
+          predicates:
+            - Path=/robot/**
+        - id: cs-im
+          uri: http://${CS_IM_HOST:127.0.0.1}:${CS_IM_PORT:9003}
+          predicates:
+            - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
+        - id: cs-trade
+          uri: http://${CS_TRADE_HOST:127.0.0.1}:${CS_TRADE_PORT:9004}
+          predicates:
+            - Path=/trade/**
+        - id: auth-health
+          uri: http://${CS_AUTH_HOST:127.0.0.1}:${CS_AUTH_PORT:9001}
+          predicates:
+            - Path=/actuator/auth/**
+          filters:
+            - StripPrefix=1
+        - id: im-health
+          uri: http://${CS_IM_HOST:127.0.0.1}:${CS_IM_PORT:9003}
+          predicates:
+            - Path=/actuator/im/**
+          filters:
+            - StripPrefix=1
+        - id: message-health
+          uri: http://${CS_MESSAGE_HOST:127.0.0.1}:${CS_MESSAGE_PORT:9005}
+          predicates:
+            - Path=/actuator/message/**,/message/actuator/**
+          filters:
+            - StripPrefix=1
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 50
+          min-idle: 10
+
+cs:
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-in-production-32-byte-min-length-secret}
+    ttl-ms: ${JWT_TTL_MS:86400000}
+
+logging:
+  level:
+    root: INFO
+    com.example: INFO
+    org.springframework.cloud.gateway: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway,gatewayroutes
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+info:
+  app:
+    name: cs-gateway
+    version: 1.7.1
+    profile: prod-direct
