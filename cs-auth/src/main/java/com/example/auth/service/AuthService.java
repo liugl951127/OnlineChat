@@ -236,6 +236,16 @@ public class AuthService {
         resp.put("avatar", u.getAvatar());
         resp.put("phoneMasked", u.getPhoneMasked());
         resp.put("channel", channel);
+        // 完整用户信息（OAuth 回调需要）
+        resp.put("openid", u.getOpenid());
+        resp.put("unionid", u.getUnionid());
+        resp.put("wwUserid", u.getWwUserid());
+        resp.put("provider", u.getProvider() != null ? u.getProvider() : channel);
+        resp.put("providerUserId", u.getProviderUserId());
+        resp.put("role", u.getRole() != null ? u.getRole() : "CUSTOMER");
+        resp.put("status", u.getStatus());
+        resp.put("lastLoginTime", u.getLastLoginTime());
+        resp.put("createdAt", u.getCreatedAt());
         return resp;
     }
 

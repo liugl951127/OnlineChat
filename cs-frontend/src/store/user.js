@@ -24,8 +24,22 @@ export const useUserStore = defineStore('user', () => {
     if (token.value) {
       try {
         const payload = JSON.parse(atob(token.value.split('.')[1] || ''))
-        profile.value = { id: payload.userId, name: payload.displayName, channel: payload.channel }
-        role.value = payload.role || ''
+        // 优先从 cs_user_info 拿完整用户信息（OAuthCallback.vue 保存）
+        const stored = JSON.parse(localStorage.getItem('cs_user_info') || 'null')
+        profile.value = {
+          id: payload.userId,
+          name: payload.displayName,
+          channel: payload.channel,
+          role: payload.role || stored?.role || 'CUSTOMER',
+          avatar: stored?.avatar,
+          customerId: stored?.customerId || payload.userId,
+          nickname: stored?.nickname || payload.displayName,
+          openid: stored?.openid,
+          unionid: stored?.unionid,
+          phoneMasked: stored?.phoneMasked,
+          provider: stored?.provider || payload.channel
+        }
+        role.value = payload.role || stored?.role || ''
       } catch { /* token 无效 */ }
     }
   }
@@ -33,7 +47,21 @@ export const useUserStore = defineStore('user', () => {
   function setToken(t, profileData) {
     token.value = t
     localStorage.setItem(TOKEN_KEY, t)
-    if (profileData) profile.value = profileData
+    if (profileData) {
+      profile.value = profileData
+      // 同步保存完整信息到 localStorage（OAuthCallback.vue 也会保存）
+      localStorage.setItem('cs_user_info', JSON.stringify({
+        customerId: profileData.customerId || profileData.id,
+        nickname: profileData.name || profileData.nickname,
+        avatar: profileData.avatar,
+        openid: profileData.openid,
+        unionid: profileData.unionid,
+        phoneMasked: profileData.phoneMasked,
+        provider: profileData.provider,
+        role: profileData.role,
+        channel: profileData.channel
+      }))
+    }
     if (profileData?.role) role.value = profileData.role
   }
 
