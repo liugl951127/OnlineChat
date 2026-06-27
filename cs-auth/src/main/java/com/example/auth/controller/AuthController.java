@@ -1,7 +1,10 @@
 package com.example.auth.controller;
 
 import com.example.auth.service.AuthService;
+import com.example.auth.service.WechatJsSignService;
+import com.example.auth.service.WechatPushService;
 import com.example.auth.service.WxMiniService;
+import com.example.auth.service.WxMiniSubscribeService;
 import com.example.common.ApiException;
 import com.example.common.ApiResponse;
 import com.example.common.security.CsrfTokenIssuer;
@@ -12,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,6 +30,9 @@ public class AuthController {
     private final AuthService authService;
     private final CsrfTokenIssuer csrfIssuer;
     private final WxMiniService wxMiniService;
+    private final WechatJsSignService jsSignService;
+    private final WechatPushService pushService;
+    private final WxMiniSubscribeService miniSubscribeService;
 
     // ============ 客户：静默 / OAuth ============
     @PostMapping("/silent-login")
@@ -243,6 +250,77 @@ public class AuthController {
         resp.sendRedirect(authorizeUrl);
     }
 
+    // ============ v2.2.28 微信 JS-SDK / 消息推送 ============
+
+    /**
+     * JS-SDK 签名 (GET /auth/wechat-oa/js-sign)
+     *
+     * <p>公众号 H5 页面初始化 wx.config 所需的 4 个字段。
+     * 前端调用：
+     * <pre>
+     *   const { data } = await request.get('/auth/wechat-oa/js-sign', {
+     *     params: { url: location.href.split('#')[0] }
+     *   })
+     *   wx.config({ appId: data.appId, timestamp: data.timestamp,
+     *     nonceStr: data.nonceStr, signature: data.signature, jsApiList: [...] })
+     * </pre>
+     */
+    @GetMapping("/wechat-oa/js-sign")
+    public ApiResponse<Map<String, String>> jsSign(@RequestParam String url) {
+        return ApiResponse.ok(jsSignService.sign(url));
+    }
+
+    /**
+     * 发送客服消息 (POST /auth/wechat-oa/customer-message)
+     *
+     * <p>48 小时窗口内主动联系客户。
+     * <pre>
+     *   POST { openid, content }
+     *   ← { errcode: 0, errmsg: "ok", msg_id: "..." }
+     * </pre>
+     */
+    @PostMapping("/wechat-oa/customer-message")
+    public ApiResponse<Map<String, Object>> customerMessage(@RequestBody CustomerMsgReq req) {
+        if (req.getOpenid() == null || req.getContent() == null) {
+            throw new ApiException(400, "openid/content 必填");
+        }
+        return ApiResponse.ok(pushService.sendCustomerMessage(req.getOpenid(), req.getContent()));
+    }
+
+    /**
+     * 发送模板消息 (POST /auth/wechat-oa/template-send)
+     *
+     * <pre>
+     *   POST { openid, templateId, data: {first: {value:"..."}}, url, miniprogramAppid, miniprogramPagepath }
+     * </pre>
+     */
+    @PostMapping("/wechat-oa/template-send")
+    public ApiResponse<Map<String, Object>> templateSend(@RequestBody TemplateMsgReq req) {
+        if (req.getOpenid() == null || req.getTemplateId() == null) {
+            throw new ApiException(400, "openid/templateId 必填");
+        }
+        return ApiResponse.ok(pushService.sendTemplateMessage(
+                req.getOpenid(), req.getTemplateId(), req.getData(),
+                req.getUrl(), req.getMiniprogramAppid(), req.getMiniprogramPagepath()));
+    }
+
+    /**
+     * 发送小程序订阅消息 (POST /auth/wx-mini/subscribe-send)
+     *
+     * <p>需用户在客户端先授权（wx.requestSubscribeMessage）。
+     * <pre>
+     *   POST { openid, templateId, data: {thing1: {value:"工单已处理"}}, page }
+     * </pre>
+     */
+    @PostMapping("/wx-mini/subscribe-send")
+    public ApiResponse<Map<String, Object>> miniSubscribeSend(@RequestBody MiniSubReq req) {
+        if (req.getOpenid() == null || req.getTemplateId() == null) {
+            throw new ApiException(400, "openid/templateId 必填");
+        }
+        return ApiResponse.ok(miniSubscribeService.send(
+                req.getOpenid(), req.getTemplateId(), req.getData(), req.getPage()));
+    }
+
     /** 小程序登录请求体 */
     @Data
     public static class WxMiniLoginReq {
@@ -269,5 +347,28 @@ public class AuthController {
         private String phone;
         private String code;
         private String nickname;
+    }
+
+    // ============ v2.2.28 微信推送请求体 ============
+
+    @Data public static class CustomerMsgReq {
+        private String openid;
+        private String content;
+    }
+
+    @Data public static class TemplateMsgReq {
+        private String openid;
+        private String templateId;
+        private Map<String, Object> data;
+        private String url;
+        private String miniprogramAppid;
+        private String miniprogramPagepath;
+    }
+
+    @Data public static class MiniSubReq {
+        private String openid;
+        private String templateId;
+        private Map<String, Object> data;
+        private String page;
     }
 }
