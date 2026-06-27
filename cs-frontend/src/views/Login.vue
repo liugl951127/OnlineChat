@@ -9,6 +9,18 @@ import { isMockEnabled } from '@/api/mock'
 
 const isMockMode = ref(isMockEnabled())
 
+// v2.2.39: 设备自适应 OAuth provider
+const deviceType = ref('PC')        // PC / MOBILE / WECHAT_OA / MINI
+const recommendedScope = ref('snsapi_userinfo')
+const deviceNote = ref('')
+const providerMap = {
+  'wechat-oa':   { icon: '💚', label: '公众号' },
+  'wechat-work': { icon: '💼', label: '企微' },
+  'github':      { icon: '⭐', label: 'GitHub' },
+  'google':      { icon: '🔗', label: 'Google' }
+}
+const availableProviders = ref(Object.keys(providerMap))
+
 const router = useRouter()
 const route = useRoute()
 const user = useUserStore()
@@ -24,9 +36,22 @@ const registerMode = ref(false)
 
 const errors = reactive({})
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.next) {/* 占位：登录后跳转 */}
   if (route.query.register) registerMode.value = true
+  // v2.2.39: 检测设备类型 + 推荐 OAuth provider
+  try {
+    const { data } = await auth.oauthRecommend()
+    if (data.code === 0 && data.data) {
+      deviceType.value = data.data.device || 'PC'
+      recommendedScope.value = data.data.scope || 'snsapi_userinfo'
+      deviceNote.value = data.data.note || ''
+      availableProviders.value = data.data.providers || Object.keys(providerMap)
+    }
+  } catch (e) {
+    // 推荐接口挂了用默认（全部 4 个）
+    console.warn('[Login] recommend failed, use default:', e.message)
+  }
 })
 
 async function loginByPassword() {
@@ -96,7 +121,8 @@ async function oauthLogin(provider) {
   // 2. window.location.href = url 跳转（这一步是必要的，PC 端会显示二维码）
   const redirectUri = `${location.origin}/auth/${provider}/callback`
   try {
-    const { data } = await auth.oauthAuthorizeJson(provider, redirectUri)
+    // v2.2.39: 根据设备推荐 scope（微信内静默 / 其他 snsapi_userinfo）
+    const { data } = await auth.oauthAuthorizeJson(provider, redirectUri, recommendedScope.value)
     if (data.code === 0 && data.data?.url) {
       // mock 模式下 url 是 redirect_uri?code=MOCK-xxx，需要前端路由处理
       // 真实模式下 url 是 open.weixin.qq.com/...，浏览器直接跳转
@@ -207,22 +233,34 @@ async function oauthLogin(provider) {
       </el-form>
 
       <el-divider>其他登录方式</el-divider>
+      <!-- v2.2.39: 设备提示 -->
+      <el-alert
+        v-if="deviceNote"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+      >
+        <template #title>
+          <small>{{ deviceNote }}</small>
+        </template>
+      </el-alert>
       <div class="social-row">
-        <el-button class="social-btn" @click="oauthLogin('github')">
-          <el-icon><Star /></el-icon>
-          <span>GitHub</span>
+        <el-button
+          v-for="p in availableProviders"
+          :key="p"
+          class="social-btn"
+          @click="oauthLogin(p)"
+        >
+          <span>{{ providerMap[p]?.icon }}</span>
+          <span>{{ providerMap[p]?.label }}</span>
         </el-button>
-        <el-button class="social-btn" @click="oauthLogin('google')">
-          <el-icon><Connection /></el-icon>
-          <span>Google</span>
-        </el-button>
-        <el-button class="social-btn" @click="oauthLogin('wechat-oa')">
-          <span style="color:#07c160">💚</span>
-          <span>公众号</span>
-        </el-button>
-        <el-button class="social-btn" @click="oauthLogin('wechat-work')">
-          <span style="color:#1677ff">💼</span>
-          <span>企微</span>
+        <el-button
+          v-if="availableProviders.length === 0"
+          disabled
+          class="social-btn"
+        >
+          <small>当前环境无支持的网页登录方式</small>
         </el-button>
       </div>
     </el-card>

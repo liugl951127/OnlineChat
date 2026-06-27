@@ -11,8 +11,10 @@ export const auth = {
   me: () => request.get('/auth/me'),
   logout: () => request.post('/auth/logout'),
   /** v2.2.31: 拿 OAuth 授权 URL (JSON 形式，避开 PC 端 302 弹窗拦截) */
-  oauthAuthorizeJson: (provider, redirectUri) =>
-    request.get(`/auth/${provider}/authorize-json`, { params: { redirect_uri: redirectUri } }),
+  oauthAuthorizeJson: (provider, redirectUri, scope) =>
+    request.get(`/auth/${provider}/authorize-json`, { params: { redirect_uri: redirectUri, scope } }),
+  /** v2.2.39: 设备自适应 OAuth provider 推荐 */
+  oauthRecommend: () => request.get('/auth/oauth/recommend'),
   githubUrl: redirect => request.get('/auth/github/authorize', { params: { redirect_uri: redirect } }),
   googleUrl: redirect => request.get('/auth/google/authorize', { params: { redirect_uri: redirect } })
 }
