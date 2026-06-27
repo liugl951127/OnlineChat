@@ -10,9 +10,13 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
         file-extension: yaml
+        import-check:
+          enabled: false
+        enabled: ${NACOS_CONFIG_ENABLED:false}
 
   # 默认 dev
   datasource:

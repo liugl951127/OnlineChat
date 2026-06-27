@@ -12,8 +12,16 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+        # dev 环境默认 false，生产可启用
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
       config:
         server-addr: localhost:8848
+        # Spring Cloud Alibaba 2023.0.1.0 默认要求 spring.config.import 声明 nacos 配置
+        # 不配置 import-check.enabled=false 会报 'spring.config.import missing' 错误
+        import-check:
+          enabled: false
+        # dev 环境默认 false，生产可启用
+        enabled: ${NACOS_CONFIG_ENABLED:false}
     gateway:
       # dev profile 用直连 http（不用 lb:// 服务发现）
       # 生产 profile 改为 lb://cs-auth 需要 Nacos discovery 启用
