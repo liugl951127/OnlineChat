@@ -36,7 +36,7 @@ public class WechatAccessTokenCache {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper json = new ObjectMapper();
-    private final RestTemplate http = new RestTemplate();
+    private final RestTemplate http;
 
     @Value("${wechat.oa.app-id:demo-app-id}")
     private String appId;

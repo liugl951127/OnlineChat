@@ -49,15 +49,17 @@ public class RiskController {
     }
 
     /**
-     * 查最新有效评估
+     * 查最新有效评估（强制从 SecurityContext 取，防越权）
      */
     @GetMapping("/latest")
     public ApiResponse<RiskAssessment> latest(@RequestParam(required = false) String customerId) {
-        String cid = customerId;
-        if (cid == null || cid.isBlank()) {
-            var ctx = SecurityContextHolder.current();
-            if (ctx == null) throw new ApiException(401, "未登录");
-            cid = ctx.getUserId();
+        var ctx = SecurityContextHolder.current();
+        String cid = ctx != null ? ctx.getUserId() : null;
+        if (cid == null) throw new ApiException(401, "未登录");
+        boolean isStaff = ctx != null && ("AGENT".equals(ctx.getRole()) || "ADMIN".equals(ctx.getRole()));
+        if (customerId != null && !customerId.isBlank() && !customerId.equals(cid)) {
+            if (!isStaff) throw new ApiException(403, "无权查询他人风险评估");
+            cid = customerId;
         }
         return ApiResponse.ok(riskService.getLatestValid(cid));
     }

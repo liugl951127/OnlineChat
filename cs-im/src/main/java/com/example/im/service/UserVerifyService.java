@@ -1,6 +1,7 @@
 package com.example.im.service;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -16,7 +17,10 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserVerifyService {
+    private final RestTemplate http;
+
 
     @Value("${cs.auth.base-url:http://localhost:9001}")
     private String authBaseUrl;
@@ -24,7 +28,7 @@ public class UserVerifyService {
     @Autowired(required = false)
     private JwtTokenHolder jwtHolder;
 
-    private final RestTemplate http = new RestTemplate();
+    
 
     /**
      * 检查客户是否实名认证

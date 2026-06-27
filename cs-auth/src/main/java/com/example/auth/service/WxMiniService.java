@@ -38,7 +38,7 @@ public class WxMiniService {
     private final AuthService authService;
 
     private final ObjectMapper json = new ObjectMapper();
-    private final RestTemplate http = new RestTemplate();
+    private final RestTemplate http;
 
     @Value("${wechat.mini.app-id:demo-mini-app-id}")
     private String appId;

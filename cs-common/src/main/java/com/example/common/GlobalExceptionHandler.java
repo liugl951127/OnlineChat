@@ -14,9 +14,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(e.getCode()).body(ApiResponse.fail(e.getCode(), e.getMessage()));
     }
 
+    /**
+     * 兜底异常（v2.2.35）：不把原始异常 message 返回前端（防信息泄漏）。
+     * 生产环境推荐暴露 traceId 给前端以便用户报障。
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleAny(Exception e) {
-        log.error("unhandled error", e);
-        return ResponseEntity.status(500).body(ApiResponse.fail(500, "服务异常: " + e.getMessage()));
+        String traceId = java.util.UUID.randomUUID().toString().substring(0, 8);
+        log.error("[unhandled error] traceId={} msg={}", traceId, e.getMessage(), e);
+        return ResponseEntity.status(500).body(
+                ApiResponse.fail(500, "服务异常，请稍后重试 (traceId=" + traceId + ")"));
     }
 }

@@ -32,6 +32,8 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class TencentBankCard4Client {
+    private final RestTemplate http;
+
 
     private final TencentAiProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -75,7 +77,7 @@ public class TencentBankCard4Client {
         h.set("Authorization", signer.authorization());
 
         try {
-            RestTemplate rest = new RestTemplate();
+            RestTemplate rest = http;
             ResponseEntity<String> resp = rest.exchange(
                 "https://cpdp.tencentcloudapi.com",
                 HttpMethod.POST,

@@ -1,6 +1,7 @@
 package com.example.auth.controller;
 
 import com.example.auth.service.AuthService;
+import com.example.auth.service.TokenBlacklistService;
 import com.example.auth.service.WechatJsSignService;
 import com.example.auth.service.WechatPushService;
 import com.example.auth.service.WxMiniService;
@@ -35,6 +36,8 @@ public class AuthController {
     private final WechatJsSignService jsSignService;
     private final WechatPushService pushService;
     private final WxMiniSubscribeService miniSubscribeService;
+    private final TokenBlacklistService blacklistService;
+    private final com.example.common.JwtUtils jwtUtils;
 
     // ============ 客户：静默 / OAuth ============
     @PostMapping("/silent-login")
@@ -219,6 +222,8 @@ public class AuthController {
         if (req.getPassword() == null || req.getUsername() == null) {
             throw new ApiException(400, "用户名/密码必填");
         }
+        // v2.2.35: 密码强度校验
+        validatePasswordStrength(req.getPassword());
         return ApiResponse.ok(authService.register(req.getUsername(), req.getPassword(),
                 req.getPhone(), req.getCode(), req.getNickname()));
     }
@@ -262,6 +267,42 @@ public class AuthController {
     @PostMapping("/refresh")
     public ApiResponse<Map<String, Object>> refresh(@RequestHeader("Authorization") String auth) {
         return ApiResponse.ok(Map.of("token", auth.replace("Bearer ", "")));
+    }
+
+    /**
+     * 登出（v2.2.35）：将当前 token 加入黑名单，下次请求会被拦截
+     *
+     * <pre>
+     *   POST /auth/logout
+     *   Header: Authorization: Bearer eyJhbGc...
+     *   ← { code: 0, msg: "ok" }
+     * </pre>
+     */
+    @PostMapping("/logout")
+    public ApiResponse<Map<String, Object>> logout(@RequestHeader(value = "Authorization", required = false) String auth) {
+        if (auth != null && auth.startsWith("Bearer ")) {
+            String token = auth.substring(7);
+            long ttl = jwtUtils.parse(token) != null
+                    ? Math.max(60, jwtUtils.parse(token).getExpiration().getTime() / 1000 - System.currentTimeMillis() / 1000)
+                    : 86400;
+            blacklistService.revoke(token, ttl);
+            log.info("[Logout] token revoked, ttl={}s", ttl);
+        }
+        return ApiResponse.ok(Map.of("msg", "logged out"));
+    }
+
+    /**
+     * 踢人/封号（v2.2.35）：管理员调用，让该用户所有 token 失效
+     *
+     * <pre>
+     *   POST /auth/admin/revoke-user?customerId=c-xxx
+     *   ← { code: 0, msg: "ok", version: 5 }
+     * </pre>
+     */
+    @PostMapping("/admin/revoke-user")
+    public ApiResponse<Map<String, Object>> revokeUser(@RequestParam String customerId) {
+        Long v = blacklistService.bumpUserVersion(customerId);
+        return ApiResponse.ok(Map.of("msg", "user revoked", "version", v));
     }
 
     /** 手机号实名认证查询 (v1.8.0: cs-im 反洗钱 / 适当性检查调用) */
@@ -412,6 +453,25 @@ public class AuthController {
     private static String clientIp(HttpServletRequest req) {
         String xff = req.getHeader("X-Forwarded-For");
         return xff != null ? xff.split(",")[0] : req.getRemoteAddr();
+    }
+
+    /**
+     * 密码强度校验（v2.2.35）
+     *
+     * <p>要求：8-32 位 + 同时包含字母和数字
+     */
+    private static void validatePasswordStrength(String password) {
+        if (password.length() < 8) {
+            throw new ApiException(400, "密码至少 8 位");
+        }
+        if (password.length() > 32) {
+            throw new ApiException(400, "密码不能超过 32 位");
+        }
+        boolean hasLetter = password.matches(".*[a-zA-Z].*");
+        boolean hasDigit = password.matches(".*[0-9].*");
+        if (!hasLetter || !hasDigit) {
+            throw new ApiException(400, "密码必须同时包含字母和数字");
+        }
     }
 
     /**

@@ -31,7 +31,7 @@ public class WxMiniSubscribeService {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper json = new ObjectMapper();
-    private final RestTemplate http = new RestTemplate();
+    private final RestTemplate http;
 
     @Value("${wechat.mini.app-id:wx-mini-appid}")
     private String appId;

@@ -86,14 +86,18 @@ public class TicketController {
     }
 
     /**
-     * 客户的工单列表
+     * 客户的工单列表（强制从 SecurityContext 取，防越权）
      */
     @GetMapping("/list")
     public ApiResponse<List<Ticket>> listByCustomer(@RequestParam(required = false) String customerId) {
         var ctx = SecurityContextHolder.current();
         if (ctx == null) throw new ApiException(401, "未登录");
-        // 默认查自己
-        String cid = customerId != null ? customerId : ctx.getUserId();
+        String cid = ctx.getUserId();
+        boolean isStaff = "AGENT".equals(ctx.getRole()) || "ADMIN".equals(ctx.getRole());
+        if (customerId != null && !customerId.isBlank() && !customerId.equals(cid)) {
+            if (!isStaff) throw new ApiException(403, "无权查询他人工单");
+            cid = customerId;
+        }
         return ApiResponse.ok(ticketService.listByCustomer(cid));
     }
 

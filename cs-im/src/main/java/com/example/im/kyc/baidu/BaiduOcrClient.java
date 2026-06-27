@@ -35,6 +35,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @Component
 @RequiredArgsConstructor
 public class BaiduOcrClient {
+    private final RestTemplate http;
+
 
     private final BaiduOcrProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -115,7 +117,7 @@ public class BaiduOcrClient {
         h.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         try {
-            RestTemplate rest = new RestTemplate();
+            RestTemplate rest = http;
             ResponseEntity<String> resp = rest.exchange(url, HttpMethod.POST,
                 new HttpEntity<>(form, h), String.class);
 
@@ -162,7 +164,7 @@ public class BaiduOcrClient {
                 + "&client_id=" + URLEncoder.encode(props.getApiKey(), StandardCharsets.UTF_8)
                 + "&client_secret=" + URLEncoder.encode(props.getSecretKey(), StandardCharsets.UTF_8);
 
-            RestTemplate rest = new RestTemplate();
+            RestTemplate rest = http;
             ResponseEntity<String> resp = rest.getForEntity(url, String.class);
             JsonNode root = objectMapper.readTree(resp.getBody());
 

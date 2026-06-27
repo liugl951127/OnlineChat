@@ -63,6 +63,7 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
             "/auth/agent/login",
             "/auth/admin/login",
             "/auth/refresh",
+            "/auth/logout",
             // ============ 验证码 / KYC / 验证 ============
             "/auth/verify/phone",
             "/auth/wechat-oa/js-sign",

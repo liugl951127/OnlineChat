@@ -25,7 +25,7 @@ public class WechatPushService {
 
     private final WechatAccessTokenCache tokenCache;
     private final ObjectMapper json = new ObjectMapper();
-    private final RestTemplate http = new RestTemplate();
+    private final RestTemplate http;
 
     @Value("${wechat.oa.mock:true}")
     private boolean mock;

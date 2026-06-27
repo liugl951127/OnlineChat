@@ -3,6 +3,7 @@ package com.example.auth.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -28,7 +29,10 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class WechatOaClient {
+    private final RestTemplate http;
+
 
     @Value("${wechat.oa.app-id:demo-oa-appid}")
     private String appId;
@@ -37,7 +41,7 @@ public class WechatOaClient {
     @Value("${wechat.oa.mock:true}")
     private boolean mock;
 
-    private final RestTemplate http = new RestTemplate();
+    
     private final ObjectMapper json = new ObjectMapper();
 
     /** 第一步：生成授权 URL */

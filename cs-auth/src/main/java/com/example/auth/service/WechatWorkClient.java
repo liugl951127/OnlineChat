@@ -3,6 +3,7 @@ package com.example.auth.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -26,7 +27,10 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class WechatWorkClient {
+    private final RestTemplate http;
+
 
     @Value("${wechat.work.corp-id:demo-corp}")
     private String corpId;
@@ -37,7 +41,7 @@ public class WechatWorkClient {
     @Value("${wechat.work.mock:true}")
     private boolean mock;
 
-    private final RestTemplate http = new RestTemplate();
+    
     private final ObjectMapper json = new ObjectMapper();
 
     public String authorizeUrl(String redirectUri, String state) {

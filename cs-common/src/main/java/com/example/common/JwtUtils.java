@@ -85,4 +85,34 @@ public class JwtUtils {
             return null;
         }
     }
+
+    /**
+     * 检查 token 是否被加入黑名单（需外部实现，默认返回 false）
+     *
+     * <p>使用方式：在 cs-auth 启动时 setTokenBlacklistChecker() 注入检查器。
+     * 其他微服务（cs-gateway/cs-im/cs-message）无需关心黑名单，只用 JwtUtils 基础校验。
+     */
+    private java.util.function.Predicate<String> blacklistChecker = t -> false;
+
+    public void setTokenBlacklistChecker(java.util.function.Predicate<String> checker) {
+        if (checker != null) {
+            this.blacklistChecker = checker;
+            log.info("[JWT] blacklist checker installed");
+        }
+    }
+
+    /**
+     * 解析 Token + 检查黑名单（v2.2.35）
+     *
+     * @return Claims 对象（解析失败 / 被拉黑 → 返回 null）
+     */
+    public Claims parseAndCheck(String token) {
+        Claims c = parse(token);
+        if (c == null) return null;
+        if (blacklistChecker.test(token)) {
+            log.info("[JWT] token blacklisted, subject={}", c.getSubject());
+            return null;
+        }
+        return c;
+    }
 }

@@ -3,6 +3,7 @@ package com.example.auth.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,10 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class GoogleOAuthClient {
+    private final RestTemplate http;
+
 
     @Value("${oauth.google.client-id:demo-google-client-id}")
     private String clientId;
@@ -36,7 +40,7 @@ public class GoogleOAuthClient {
     @Value("${oauth.google.mock:true}")
     private boolean mock;
 
-    private final RestTemplate http = new RestTemplate();
+    
     private final ObjectMapper json = new ObjectMapper();
 
     public String authorizeUrl(String redirectUri, String state, String scope) {

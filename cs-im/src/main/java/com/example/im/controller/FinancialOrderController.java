@@ -126,24 +126,35 @@ public class FinancialOrderController {
     }
 
     /**
-     * 客户的所有订单
+     * 客户的所有订单（强制从 SecurityContext 取，禁止请求参数覆盖防越权）
      */
     @GetMapping("/list")
     public ApiResponse<List<FinancialOrder>> listByCustomer(@RequestParam(required = false) String customerId) {
         var ctx = SecurityContextHolder.current();
-        String cid = customerId != null ? customerId : (ctx != null ? ctx.getUserId() : null);
+        String cid = ctx != null ? ctx.getUserId() : null;
         if (cid == null) throw new ApiException(401, "未登录");
+        // 坐席/管理员可查询任意客户（用 X-User-Role 区分）
+        boolean isStaff = ctx != null && ("AGENT".equals(ctx.getRole()) || "ADMIN".equals(ctx.getRole()));
+        if (customerId != null && !customerId.isBlank() && !customerId.equals(cid)) {
+            if (!isStaff) throw new ApiException(403, "无权查询他人订单");
+            cid = customerId;
+        }
         return ApiResponse.ok(orderService.listByCustomer(cid));
     }
 
     /**
-     * 客户的所有持仓
+     * 客户的所有持仓（强制从 SecurityContext 取，禁止请求参数覆盖防越权）
      */
     @GetMapping("/holdings")
     public ApiResponse<List<Holding>> holdings(@RequestParam(required = false) String customerId) {
         var ctx = SecurityContextHolder.current();
-        String cid = customerId != null ? customerId : (ctx != null ? ctx.getUserId() : null);
+        String cid = ctx != null ? ctx.getUserId() : null;
         if (cid == null) throw new ApiException(401, "未登录");
+        boolean isStaff = ctx != null && ("AGENT".equals(ctx.getRole()) || "ADMIN".equals(ctx.getRole()));
+        if (customerId != null && !customerId.isBlank() && !customerId.equals(cid)) {
+            if (!isStaff) throw new ApiException(403, "无权查询他人持仓");
+            cid = customerId;
+        }
         return ApiResponse.ok(orderService.listHoldings(cid));
     }
 

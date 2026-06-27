@@ -32,7 +32,7 @@ public class OfflinePushService {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper json = new ObjectMapper();
-    private final RestTemplate http = new RestTemplate();
+    private final RestTemplate http;
 
     @Value("${wechat.work.mock:true}")
     private boolean workMock;

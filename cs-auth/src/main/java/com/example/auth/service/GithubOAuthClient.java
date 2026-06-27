@@ -3,6 +3,7 @@ package com.example.auth.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,10 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class GithubOAuthClient {
+    private final RestTemplate http;
+
 
     @Value("${oauth.github.client-id:demo-github-client-id}")
     private String clientId;
@@ -38,7 +42,7 @@ public class GithubOAuthClient {
     @Value("${oauth.github.mock:true}")
     private boolean mock;
 
-    private final RestTemplate http = new RestTemplate();
+    
     private final ObjectMapper json = new ObjectMapper();
 
     /** 第一步：生成授权 URL */

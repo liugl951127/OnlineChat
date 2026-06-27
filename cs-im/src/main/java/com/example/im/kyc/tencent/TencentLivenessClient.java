@@ -33,6 +33,8 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class TencentLivenessClient {
+    private final RestTemplate http;
+
 
     private final TencentAiProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -79,7 +81,7 @@ public class TencentLivenessClient {
         h.set("Authorization", signer.authorization());
 
         try {
-            RestTemplate rest = new RestTemplate();
+            RestTemplate rest = http;
             ResponseEntity<String> resp = rest.exchange(
                 "https://faceid.tencentcloudapi.com",
                 HttpMethod.POST,
@@ -141,7 +143,7 @@ public class TencentLivenessClient {
         h.set("Authorization", signer.authorization());
 
         try {
-            RestTemplate rest = new RestTemplate();
+            RestTemplate rest = http;
             ResponseEntity<String> resp = rest.exchange(
                 "https://faceid.tencentcloudapi.com",
                 HttpMethod.POST,

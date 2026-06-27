@@ -1,5 +1,6 @@
 package com.example.im.controller;
 
+import com.example.common.ApiException;
 import com.example.common.ApiResponse;
 import com.example.im.domain.ScreenShareSession;
 import com.example.im.domain.VoiceMessage;
@@ -70,6 +71,14 @@ public class MediaController {
         Integer fileSizeKb = body.get("fileSizeKb") == null ? null
             : ((Number) body.get("fileSizeKb")).intValue();
         String audioBase64 = (String) body.get("audioBase64");
+
+        // v2.2.35: 语音大小限制（防止内存炸弹，base64 4/3 倍）
+        if (audioBase64 != null && audioBase64.length() > 5 * 1024 * 1024) {  // ~3.75MB binary
+            throw new ApiException(400, "语音文件不能超过 3.75MB");
+        }
+        if (durationSec != null && durationSec > 300) {
+            throw new ApiException(400, "语音时长不能超过 5 分钟");
+        }
 
         VoiceMessage vm = voiceService.upload(sessionId, fromId, fromRole, durationSec, fileSizeKb, audioBase64);
         return ApiResponse.ok(vm);
