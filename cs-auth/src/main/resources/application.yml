@@ -39,8 +39,8 @@ spring:
         url-pattern: /druid/*
 
   flyway:
-    enabled: true
-    baseline-on-migrate: true
+    enabled: false   # v2.2.0: cs-auth 不需要 migration 校验，统一走 db_init_all.sql
+    baseline-on-migrate: false
     locations: classpath:db/migration
 
   mybatis-plus:
