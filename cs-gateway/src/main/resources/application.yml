@@ -19,7 +19,7 @@ spring:
   # 注: 不能省略 nacos: 前缀 (Spring Cloud 不识别)
   config:
     import:
-      - "optional:nacos:cs-gateway"
+      # - "optional:nacos:cs-gateway"   # 基础配置 (v2.2.50 注释，仅用 profile 版本)
       - "optional:nacos:cs-gateway-${spring.profiles.active}"
   # nacos 服务发现: 注册到 nacos
   cloud:
