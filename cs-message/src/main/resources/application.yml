@@ -13,10 +13,10 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_ADDR:localhost:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         enabled: ${NACOS_DISCOVERY_ENABLED:false}
       config:
-        server-addr: ${NACOS_ADDR:localhost:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         file-extension: yaml
         import-check:
           enabled: false
@@ -25,7 +25,7 @@ spring:
   # Redis（在线状态 + 离线消息）
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
@@ -38,7 +38,7 @@ spring:
 
   # MySQL / Druid（消息持久化）
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:cs_message}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cs_message}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:root123}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -54,7 +54,7 @@ spring:
 
   # Kafka
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:127.0.0.1:9092}
     consumer:
       group-id: cs-message-group
       auto-offset-reset: earliest

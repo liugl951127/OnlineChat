@@ -31,13 +31,13 @@ spring:
       discovery:
         # 生产必须启用服务发现
         enabled: ${NACOS_DISCOVERY_ENABLED:true}
-        server-addr: ${NACOS_ADDR:nacos:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
         password: ${NACOS_PASS:nacos}
       config:
         enabled: ${NACOS_CONFIG_ENABLED:true}
-        server-addr: ${NACOS_ADDR:nacos:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         file-extension: yaml
         namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
@@ -86,7 +86,7 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:redis}
+      host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 3000

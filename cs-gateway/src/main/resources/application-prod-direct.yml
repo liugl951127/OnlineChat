@@ -31,10 +31,10 @@ spring:
     nacos:
       discovery:
         enabled: ${NACOS_DISCOVERY_ENABLED:false}
-        server-addr: ${NACOS_ADDR:localhost:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
       config:
         enabled: ${NACOS_CONFIG_ENABLED:false}
-        server-addr: ${NACOS_ADDR:localhost:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
     gateway:
       # 直连模式（无 lb://，用 http:// + 端口）
       routes:
