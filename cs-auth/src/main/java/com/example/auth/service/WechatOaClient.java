@@ -48,9 +48,17 @@ public class WechatOaClient {
             // 模拟用户点击了授权，返回一个 mock code + state → 前端 callback 处理
             String mockCode = "MOCK-" + UUID.randomUUID().toString().substring(0, 8);
             log.info("[WechatOA-MOCK] authorizeUrl → mock code={} redirect={}", mockCode, redirectUri);
-            // redirectUri 已经是前端 callback（如 /customer/#/auth/wx-oa/callback）
-            String sep = redirectUri.contains("?") ? "&" : "?";
-            return redirectUri + sep + "code=" + mockCode + "&state=" + state + "&mock=true";
+            // 重要: redirectUri 必须是前端 SPA 路由（/auth/wechat-oa/callback），
+            // 不是后端 callback-json。前端 OAuthCallback.vue 拿到 code 后再调 callback-json。
+            // 但默认 fallback 是 callback-json（后端接口），这里需要识别并转接。
+            String finalRedirect = redirectUri;
+            if (redirectUri.endsWith("/callback-json")) {
+                // 后端 callback-json 不是页面，是 API。把 callback-json 改成 callback
+                finalRedirect = redirectUri.replace("/callback-json", "/callback");
+                log.info("[WechatOA-MOCK] redirectUri 是 callback-json，改成 callback: {}", finalRedirect);
+            }
+            String sep = finalRedirect.contains("?") ? "&" : "?";
+            return finalRedirect + sep + "code=" + mockCode + "&state=" + state + "&mock=true";
         }
         return "https://open.weixin.qq.com/connect/oauth2/authorize"
                 + "?appid=" + appId

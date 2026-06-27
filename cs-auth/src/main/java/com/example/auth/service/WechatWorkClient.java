@@ -9,6 +9,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 企业微信 OAuth 客户端。
@@ -40,6 +41,17 @@ public class WechatWorkClient {
     private final ObjectMapper json = new ObjectMapper();
 
     public String authorizeUrl(String redirectUri, String state) {
+        if (mock) {
+            // mock 模式：跳过企微服务器，直接生成 mock code 跳到前端 callback
+            String mockCode = "MOCK-WORK-" + UUID.randomUUID().toString().substring(0, 8);
+            log.info("[WechatWork-MOCK] authorizeUrl → mock code={} redirect={}", mockCode, redirectUri);
+            String finalRedirect = redirectUri;
+            if (redirectUri.endsWith("/callback-json")) {
+                finalRedirect = redirectUri.replace("/callback-json", "/callback");
+            }
+            String sep = finalRedirect.contains("?") ? "&" : "?";
+            return finalRedirect + sep + "code=" + mockCode + "&state=" + state + "&mock=true";
+        }
         return "https://login.work.weixin.qq.com/wwlogin/sso/login"
                 + "?login_type=CorpApp"
                 + "&appid=" + corpId
