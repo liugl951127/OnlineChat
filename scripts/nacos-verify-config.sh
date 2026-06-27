@@ -53,14 +53,21 @@ for svc in cs-gateway cs-auth cs-im cs-message; do
     fi
 done
 
-# ========== 3. 检查 nacos discovery 依赖 ==========
+# ========== 3. 检查 nacos discovery 依赖 + bootstrap 启动器 ==========
 echo
-echo "[3/6] 检查 nacos-discovery 依赖"
+echo "[3/6] 检查 nacos-discovery 依赖 + spring-cloud-starter-bootstrap"
 for svc in cs-gateway cs-auth cs-im cs-message; do
     if grep -q "spring-cloud-starter-alibaba-nacos-discovery" "$svc/pom.xml"; then
         ok "$svc pom 有 nacos-discovery"
     else
         fail "$svc pom 缺 nacos-discovery"
+    fi
+    # v2.2.46: Spring Cloud 2023.0.1 默认禁用 bootstrap.yml
+    # 必须加 spring-cloud-starter-bootstrap 依赖才能加载 bootstrap.yml
+    if grep -q "spring-cloud-starter-bootstrap" "$svc/pom.xml"; then
+        ok "$svc pom 有 spring-cloud-starter-bootstrap (让 bootstrap.yml 生效)"
+    else
+        fail "$svc pom 缺 spring-cloud-starter-bootstrap (Spring Cloud 2023.0.1 默认禁用 bootstrap.yml!)"
     fi
 done
 

@@ -65,6 +65,9 @@ cs:
 logging:
   level:
     org.springframework.cloud.gateway: INFO
+    # v2.2.46: nacos discovery 详细日志
+    com.alibaba.cloud.nacos: DEBUG
+    com.alibaba.nacos: DEBUG
 
 # Gateway 自身健康检查（供 K8s liveness 探针）
 management:
@@ -72,6 +75,7 @@ management:
     web:
       exposure:
         include: health,info,gateway,gatewayroutes
+  # v2.2.46: NacosDiagnosticsController 自定义 /actuator/nacos-diagnostics 端点
   endpoint:
     health:
       show-details: always
