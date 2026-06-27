@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: cs-gateway
+  main:
+    # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
+    # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突
+    web-application-type: reactive
   cloud:
     nacos:
       discovery:
@@ -11,38 +15,40 @@ spring:
       config:
         server-addr: localhost:8848
     gateway:
+      # dev profile 用直连 http（不用 lb:// 服务发现）
+      # 生产 profile 改为 lb://cs-auth 需要 Nacos discovery 启用
       routes:
         - id: cs-auth
-          uri: lb://cs-auth
+          uri: http://localhost:9001
           predicates:
             - Path=/auth/**,/auth/actuator/**,/api/auth/**
         - id: cs-robot
-          uri: lb://cs-robot
+          uri: http://localhost:9002
           predicates:
             - Path=/robot/**
         - id: cs-im
-          uri: lb://cs-im
+          uri: http://localhost:9003
           predicates:
             - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
         - id: cs-trade
-          uri: lb://cs-trade
+          uri: http://localhost:9004
           predicates:
             - Path=/trade/**
         # Actuator 健康检查路径转发（供 K8s liveness/readiness 探针 + Prometheus 抓取）
         - id: auth-health
-          uri: lb://cs-auth
+          uri: http://localhost:9001
           predicates:
             - Path=/actuator/auth/**
           filters:
             - StripPrefix=1
         - id: im-health
-          uri: lb://cs-im
+          uri: http://localhost:9003
           predicates:
             - Path=/actuator/im/**
           filters:
             - StripPrefix=1
         - id: message-health
-          uri: lb://cs-message
+          uri: http://localhost:9004
           predicates:
             - Path=/actuator/message/**,/message/actuator/**
           filters:
