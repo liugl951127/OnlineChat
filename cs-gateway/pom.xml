@@ -14,6 +14,19 @@
         <dependency>
             <groupId>com.example</groupId>
             <artifactId>cs-common</artifactId>
+            <!-- cs-common 传递引入 spring-boot-starter-web（Servlet）
+                 cs-gateway 用 spring-cloud-starter-gateway（WebFlux），两者不兼容
+                 排除 starter-web，避免 Spring MVC 与 WebFlux 冲突 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-web</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
