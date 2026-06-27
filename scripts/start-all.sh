@@ -52,13 +52,13 @@ start_one() {
 }
 
 start_one cs-gateway cs-gateway/target/cs-gateway-1.7.1.jar \
-  "--spring.main.web-application-type=reactive --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
+  "--spring.profiles.active=dev --spring.main.web-application-type=reactive --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
 
-start_one cs-auth cs-auth/target/cs-auth-1.7.1.jar ""
+start_one cs-auth cs-auth/target/cs-auth-1.7.1.jar "--spring.profiles.active=dev"
 
-start_one cs-im cs-im/target/cs-im-1.7.1.jar ""
+start_one cs-im cs-im/target/cs-im-1.7.1.jar "--spring.profiles.active=dev"
 
-start_one cs-message cs-message/target/cs-message-1.7.1.jar ""
+start_one cs-message cs-message/target/cs-message-1.7.1.jar "--spring.profiles.active=dev"
 
 sleep 20
 echo ""

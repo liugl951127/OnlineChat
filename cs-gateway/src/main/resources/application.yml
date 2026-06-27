@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: cs-gateway
+  profiles:
+    active: prod
   main:
     # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突

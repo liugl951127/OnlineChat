@@ -7,7 +7,7 @@ server:
 
 spring:
   profiles:
-    active: dev
+    active: prod
   application:
     name: cs-auth
   # Spring Cloud Alibaba 2023.0.1.0 要求显式声明 config 加载位置
