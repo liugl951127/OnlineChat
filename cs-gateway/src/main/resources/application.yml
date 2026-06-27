@@ -8,6 +8,10 @@ spring:
     # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突
     web-application-type: reactive
+  # Spring Cloud Alibaba 2023.0.1.0 要求显式声明 config 加载位置
+  # optional: 前缀让 nacos 不可达时不报错（dev 环境友好）
+  config:
+    import: "optional:nacos:cs-gateway.yml"
   cloud:
     nacos:
       discovery:
@@ -16,8 +20,6 @@ spring:
         enabled: ${NACOS_DISCOVERY_ENABLED:false}
       config:
         server-addr: localhost:8848
-        # Spring Cloud Alibaba 2023.0.1.0 默认要求 spring.config.import 声明 nacos 配置
-        # 不配置 import-check.enabled=false 会报 'spring.config.import missing' 错误
         import-check:
           enabled: false
         # dev 环境默认 false，生产可启用

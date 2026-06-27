@@ -6,6 +6,10 @@ spring:
     active: dev
   application:
     name: cs-im
+  # Spring Cloud Alibaba 2023.0.1.0 要求显式声明 config 加载位置
+  # optional: 前缀让 nacos 不可达时不报错
+  config:
+    import: "optional:nacos:cs-im.yml"
   cloud:
     nacos:
       discovery:
