@@ -23,7 +23,7 @@ const service = axios.create({
 
 // ============ Request 拦截：Token + CSRF + 时间戳防重放 ============
 service.interceptors.request.use(async config => {
-  // === Mock 拦截（仅 auth 模块） ===
+  // === Mock 拦截（仅 auth 模块，且仅当 Mock 模式启用） ===
   if (isMockEnabled() && config.url && config.url.startsWith('/auth/')) {
     const url = config.url
     const method = (config.method || 'get').toLowerCase()

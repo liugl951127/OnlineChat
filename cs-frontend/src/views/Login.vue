@@ -91,7 +91,9 @@ function handleLoginSuccess(data) {
 }
 
 function oauthLogin(provider) {
-  const redirectUri = `${location.origin}/auth/${provider}/callback`
+  // 拼到前端路由（如 /#/auth/wechat-oa/callback），后端 302 后会带上 code/token 回到这里
+  const redirectUri = `${location.origin}/#${window.location.pathname}auth/${provider}/callback`
+  // 直接用 window.location 跳转，让后端返回 302（不走 axios）
   location.href = `/auth/${provider}/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
 }
 </script>

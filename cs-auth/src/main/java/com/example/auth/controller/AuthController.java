@@ -49,6 +49,13 @@ public class AuthController {
         resp.sendRedirect("/customer/?token=" + token.get("token"));
     }
 
+    /** 返回 JSON（供 SPA 路由处理，不走 302） */
+    @GetMapping("/wechat-oa/callback-json")
+    public ApiResponse<Map<String, Object>> oaCallbackJson(@RequestParam String code,
+                                                            @RequestParam(required = false) String state) {
+        return ApiResponse.ok(authService.oaCallback(code));
+    }
+
     @GetMapping("/wechat-work/authorize")
     public void workAuthorize(@RequestParam String redirectUri,
                               @RequestParam(required = false) String state,
@@ -63,6 +70,12 @@ public class AuthController {
                              HttpServletResponse resp) throws IOException {
         Map<String, Object> token = authService.workCallback(code);
         resp.sendRedirect("/agent/?token=" + token.get("token"));
+    }
+
+    @GetMapping("/wechat-work/callback-json")
+    public ApiResponse<Map<String, Object>> workCallbackJson(@RequestParam String code,
+                                                             @RequestParam(required = false) String state) {
+        return ApiResponse.ok(authService.workCallback(code));
     }
 
     // ============ GitHub OAuth ============
@@ -85,6 +98,11 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/github/callback-json")
+    public ApiResponse<Map<String, Object>> githubCallbackJson(@RequestParam String code, @RequestParam String state) {
+        return ApiResponse.ok(authService.githubCallback(code, state));
+    }
+
     // ============ Google OAuth ============
     @GetMapping("/google/authorize")
     public void googleAuthorize(@RequestParam String redirectUri,
@@ -104,6 +122,11 @@ public class AuthController {
         } catch (Exception e) {
             resp.sendRedirect("/login/?error=" + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8));
         }
+    }
+
+    @GetMapping("/google/callback-json")
+    public ApiResponse<Map<String, Object>> googleCallbackJson(@RequestParam String code, @RequestParam String state, @RequestParam String redirect_uri) {
+        return ApiResponse.ok(authService.googleCallback(code, state, redirect_uri));
     }
 
     // ============ 用户名 + 密码 ============

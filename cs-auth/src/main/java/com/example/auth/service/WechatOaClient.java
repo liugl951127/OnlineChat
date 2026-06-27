@@ -9,6 +9,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 微信公众号 OAuth 客户端。
@@ -42,6 +43,15 @@ public class WechatOaClient {
     /** 第一步：生成授权 URL */
     public String authorizeUrl(String redirectUri, String state, String scope) {
         String s = scope == null ? "snsapi_base" : scope; // base=静默，userinfo=弹窗
+        if (mock) {
+            // mock 模式：跳过微信服务器，直接生成 mock code → 跳到前端 callback
+            // 模拟用户点击了授权，返回一个 mock code + state → 前端 callback 处理
+            String mockCode = "MOCK-" + UUID.randomUUID().toString().substring(0, 8);
+            log.info("[WechatOA-MOCK] authorizeUrl → mock code={} redirect={}", mockCode, redirectUri);
+            // redirectUri 已经是前端 callback（如 /customer/#/auth/wx-oa/callback）
+            String sep = redirectUri.contains("?") ? "&" : "?";
+            return redirectUri + sep + "code=" + mockCode + "&state=" + state + "&mock=true";
+        }
         return "https://open.weixin.qq.com/connect/oauth2/authorize"
                 + "?appid=" + appId
                 + "&redirect_uri=" + url(redirectUri)

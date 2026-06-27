@@ -8,6 +8,8 @@ const routes = [
   { path: '/agent', name: 'agent', component: () => import('@/views/Agent.vue'), meta: { title: '坐席工作台', role: 'AGENT' } },
   { path: '/admin', name: 'admin', component: () => import('@/views/Admin.vue'), meta: { title: '后管系统', role: 'ADMIN' } },
   { path: '/404', name: 'notfound', component: () => import('@/views/NotFound.vue'), meta: { title: '页面未找到', public: true } },
+  // 微信/GitHub/Google OAuth 回调页（从后端 302 跳转到这里，带 code 或 token）
+  { path: '/auth/:provider/callback', name: 'oauth-callback', component: () => import('@/views/OAuthCallback.vue'), meta: { title: '授权回调', public: true } },
   { path: '/:pathMatch(.*)*', redirect: '/404' }
 ]
 

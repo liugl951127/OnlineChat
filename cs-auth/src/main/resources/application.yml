@@ -144,13 +144,13 @@ wechat:
   oa:
     app-id: ${WX_OA_APP_ID:demo-app-id}
     app-secret: ${WX_OA_APP_SECRET:demo-app-secret}
-    mock: ${WX_OA_MOCK:false}
+    mock: ${WX_OA_MOCK:true}                # 默认 Mock 模式（sandbox 无真实 appId）
   work:
     corp-id: ${WX_WORK_CORP_ID:demo-corp-id}
     corp-secret: ${WX_WORK_CORP_SECRET:demo-corp-secret}
     agent-id: ${WX_WORK_AGENT_ID:1000001}
-    mock: ${WX_WORK_MOCK:false}
+    mock: ${WX_WORK_MOCK:true}
   mini:
     app-id: ${WX_MINI_APP_ID:demo-mini-app-id}
     app-secret: ${WX_MINI_APP_SECRET:demo-mini-app-secret}
-    mock: ${WX_MINI_MOCK:false}
+    mock: ${WX_MINI_MOCK:true}
