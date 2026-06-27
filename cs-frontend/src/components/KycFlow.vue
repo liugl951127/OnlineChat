@@ -445,7 +445,7 @@ const statusColor = (s) => ({
             <el-input v-model="bankForm.cardName" placeholder="如 张三" />
           </el-form-item>
           <el-form-item label="身份证号">
-            <el-input v-model="bankForm.idCardNo" placeholder="如 110105199001151234" />
+            <el-input v-model="bankForm.idCardNo" placeholder="如 110105199001151235" />
           </el-form-item>
           <el-form-item label="预留手机号">
             <el-input v-model="bankForm.mobile" placeholder="如 13800138000" />

@@ -178,3 +178,14 @@ tencent:
     timeout-ms: 10000
   bank-card4:
     endpoint: cpdp.tencentcloudapi.com
+
+# 本地自研 OCR + 人脸识别（v2.2.1 零外部 API）
+# 推荐：高安全场景用腾讯云 / 百度；离线 demo / 内部测试用 local
+local:
+  ocr:
+    enabled: true
+    tess-data-path: classpath:tessdata/
+  face:
+    enabled: true
+    cascade-path: classpath:haarcascades/haarcascade_frontalface.xml
+    match-threshold: 80

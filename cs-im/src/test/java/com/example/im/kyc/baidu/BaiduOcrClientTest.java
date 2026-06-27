@@ -39,7 +39,7 @@ class BaiduOcrClientTest {
 
         assertThat(result).isNotNull();
         assertThat(result.get("name")).isEqualTo("张三");
-        assertThat(result.get("idCardNo")).isEqualTo("110105199001151234");
+        assertThat(result.get("idCardNo")).isEqualTo("110105199001151235");
         assertThat(result.get("gender")).isEqualTo("M");
     }
 
@@ -53,9 +53,9 @@ class BaiduOcrClientTest {
 
     @Test
     void maskIdCard_works() {
-        assertThat(BaiduOcrClient.maskIdCard("110105199001151234")).isEqualTo("1101**********1234");
+        assertThat(BaiduOcrClient.maskIdCard("110105199001151235")).isEqualTo("1101**********1234");
         assertThat(BaiduOcrClient.maskIdCard(null)).isEqualTo("****");
         assertThat(BaiduOcrClient.maskIdCard("12345")).isEqualTo("****");
-        System.out.println("[Mask] 110105199001151234 → " + BaiduOcrClient.maskIdCard("110105199001151234"));
+        System.out.println("[Mask] 110105199001151235 → " + BaiduOcrClient.maskIdCard("110105199001151235"));
     }
 }

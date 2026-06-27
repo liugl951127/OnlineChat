@@ -74,5 +74,21 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
         <!-- 百度 AI 不引 SDK，直接调 REST API（零依赖） -->
+
+        <!-- 本地 OCR + 人脸识别（v2.2.1 自研） -->
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv-platform</artifactId>
+            <version>1.5.10</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sourceforge.tess4j</groupId>
+            <artifactId>tess4j</artifactId>
+            <version>5.13.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
     </dependencies>
 </project>

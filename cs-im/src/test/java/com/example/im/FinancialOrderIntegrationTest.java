@@ -117,7 +117,7 @@ public class FinancialOrderIntegrationTest {
             app = kycService.approve(app.getApplicationNo(), "test_auditor",
                     new java.math.BigDecimal("95"), "ok");
             kycService.bindBankCard(app.getApplicationNo(), "6222021234567890123",
-                    "张三", "110105199001151234", "13800138000");
+                    "张三", "110105199001151235", "13800138000");
             if (kycService.isCompleted(customerId)) return;
         }
         throw new RuntimeException("KYC 重试 10 次仍未完成");

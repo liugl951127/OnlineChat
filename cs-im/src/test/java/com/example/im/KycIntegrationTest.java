@@ -71,7 +71,7 @@ public class KycIntegrationTest {
                 // 8) 绑卡
                 app = kycService.bindBankCard(app.getApplicationNo(),
                         "6222021234567890123", "张三",
-                        "110105199001151234", "13800138000");
+                        "110105199001151235", "13800138000");
                 assertEquals("COMPLETED", app.getStatus());
                 assertNotNull(app.getCompletedAt());
 
