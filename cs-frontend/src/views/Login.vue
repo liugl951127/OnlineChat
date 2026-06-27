@@ -139,8 +139,8 @@ function oauthLogin(provider) {
             </el-form-item>
             <el-button type="primary" :loading="submitting" class="full" @click="loginByPassword">登录</el-button>
             <div class="links">
-              <el-link type="primary" :underline="false" @click="registerMode = true">注册账号</el-link>
-              <el-link type="primary" :underline="false">忘记密码</el-link>
+              <el-link type="primary" :underline="'never'" @click="registerMode = true">注册账号</el-link>
+              <el-link type="primary" :underline="'never'">忘记密码</el-link>
             </div>
           </el-form>
         </el-tab-pane>
@@ -182,7 +182,7 @@ function oauthLogin(provider) {
           <el-input v-model="registerForm.confirm" type="password" maxlength="64" show-password />
         </el-form-item>
         <el-button type="primary" :loading="submitting" class="full" @click="register">注册</el-button>
-        <el-link type="primary" :underline="false" @click="registerMode = false">返回登录</el-link>
+        <el-link type="primary" :underline="'never'" @click="registerMode = false">返回登录</el-link>
       </el-form>
 
       <el-divider>其他登录方式</el-divider>
