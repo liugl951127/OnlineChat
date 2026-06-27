@@ -10,21 +10,7 @@ spring:
     active: prod
   application:
     name: cs-auth
-  # Spring Cloud Alibaba 2023.0.1.0 要求显式声明 config 加载位置
-  # optional: 前缀让 nacos 不可达时不报错
-  config:
-    import: "optional:nacos:cs-auth.yml"
-  cloud:
-    nacos:
-      discovery:
-        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        enabled: ${NACOS_DISCOVERY_ENABLED:false}
-      config:
-        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        file-extension: yaml
-        import-check:
-          enabled: false
-        enabled: ${NACOS_CONFIG_ENABLED:false}
+  # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
 
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DB:cs_auth}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true

@@ -6,21 +6,7 @@ spring:
     name: cs-message
   profiles:
     active: prod
-  # Spring Cloud Alibaba 2023.0.1.0 要求显式声明 config 加载位置
-  # optional: 前缀让 nacos 不可达时不报错
-  config:
-    import: "optional:nacos:cs-message.yml"
-  cloud:
-    nacos:
-      discovery:
-        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        enabled: ${NACOS_DISCOVERY_ENABLED:false}
-      config:
-        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        file-extension: yaml
-        import-check:
-          enabled: false
-        enabled: ${NACOS_CONFIG_ENABLED:false}
+  # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
 
   # Redis（在线状态 + 离线消息）
   data:

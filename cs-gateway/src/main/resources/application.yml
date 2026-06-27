@@ -10,57 +10,54 @@ spring:
     # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突
     web-application-type: reactive
-  # Spring Cloud Alibaba 2023.0.1.0 要求显式声明 config 加载位置
-  # optional: 前缀让 nacos 不可达时不报错（dev 环境友好）
-  config:
-    import: "optional:nacos:cs-gateway.yml"
+  # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
-        # dev 环境默认 false，生产可启用
-        enabled: ${NACOS_DISCOVERY_ENABLED:false}
-      config:
-        server-addr: localhost:8848
-        import-check:
-          enabled: false
-        # dev 环境默认 false，生产可启用
-        enabled: ${NACOS_CONFIG_ENABLED:false}
+        locator:
+          # 开启 lb://cs-auth 自动跳到 nacos 注册的 cs-auth 服务 (v2.2.44)
+          enabled: ${GATEWAY_LB_ENABLED:false}
+          lower-case-service-id: true
     gateway:
       # dev profile 用直连 http（不用 lb:// 服务发现）
-      # 生产 profile 改为 lb://cs-auth 需要 Nacos discovery 启用
+      # v2.2.44: 默认 http:// 本地直连 (sandbox 演示)
+      #    生产配 GATEWAY_LB_ENABLED=true + Nacos discovery 启用自动 lb://cs-auth
       routes:
         - id: cs-auth
-          uri: http://localhost:9001
+          uri: ${CS_AUTH_URI:http://localhost:9001}
           predicates:
             - Path=/auth/**,/auth/actuator/**,/api/auth/**
         - id: cs-robot
-          uri: http://localhost:9002
+          uri: ${CS_ROBOT_URI:http://localhost:9002}
           predicates:
             - Path=/robot/**
         - id: cs-im
-          uri: http://localhost:9003
+          uri: ${CS_IM_URI:http://localhost:9003}
           predicates:
             - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
         - id: cs-trade
-          uri: http://localhost:9004
+          uri: ${CS_TRADE_URI:http://localhost:9004}
           predicates:
             - Path=/trade/**
+        - id: cs-message
+          uri: ${CS_MESSAGE_URI:http://localhost:9005}
+          predicates:
+            - Path=/message/**,/api/message/**
         # Actuator 健康检查路径转发（供 K8s liveness/readiness 探针 + Prometheus 抓取）
         - id: auth-health
-          uri: http://localhost:9001
+          uri: ${CS_AUTH_URI:http://localhost:9001}
           predicates:
             - Path=/actuator/auth/**
           filters:
             - StripPrefix=1
         - id: im-health
-          uri: http://localhost:9003
+          uri: ${CS_IM_URI:http://localhost:9003}
           predicates:
             - Path=/actuator/im/**
           filters:
             - StripPrefix=1
         - id: message-health
-          uri: http://localhost:9004
+          uri: ${CS_MESSAGE_URI:http://localhost:9005}
           predicates:
             - Path=/actuator/message/**,/message/actuator/**
           filters:
