@@ -88,3 +88,10 @@ html, body {
 .fade-in-up {
   animation: fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
+/* 禁止 el-link 默认下划线（避免 Element Plus 3.0 弃用警告） */
+.el-link {
+  text-decoration: none !important;
+}
+.el-link:hover {
+  text-decoration: underline !important;
+}
