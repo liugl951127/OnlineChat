@@ -35,6 +35,7 @@ public class FinancialOrderService {
     private final HoldingMapper holdingMapper;
     private final RiskAssessmentService riskService;
     private final ComplianceService complianceService;
+    private final ContractService contractService;
 
     // ============= 1) 创建订单（草稿） =============
 
@@ -117,6 +118,36 @@ public class FinancialOrderService {
         return o;
     }
 
+    // ============= 2.5) 生成合同（合规检查通过后调用） =============
+
+    /**
+     * 生成合同（调用 ContractService）
+     * 状态不跳转（保留 COMPLIANCE_PASSED），签约后跳到 CONTRACT_SIGNED
+     */
+    public com.example.im.domain.Contract generateContract(String orderNo) {
+        FinancialOrder o = mustGet(orderNo);
+        if (!"COMPLIANCE_PASSED".equals(o.getStatus())) {
+            throw new ApiException(400, "订单未通过合规检查: " + o.getStatus());
+        }
+        return contractService.generateContract(orderNo, "TPL-FIN-001");
+    }
+
+    /**
+     * 客户签约后调用 → 状态跳到 CONTRACT_SIGNED
+     */
+    @Transactional
+    public FinancialOrder markContractSigned(String orderNo) {
+        FinancialOrder o = mustGet(orderNo);
+        if (!"COMPLIANCE_PASSED".equals(o.getStatus())) {
+            throw new ApiException(400, "订单未通过合规检查: " + o.getStatus());
+        }
+        o.setStatus("CONTRACT_SIGNED");
+        o.setUpdatedAt(LocalDateTime.now());
+        orderMapper.updateById(o);
+        log.info("[Order] {} 合同已签约 → CONTRACT_SIGNED", orderNo);
+        return o;
+    }
+
     // ============= 4) 支付 =============
 
     /**
@@ -127,6 +158,10 @@ public class FinancialOrderService {
         FinancialOrder o = mustGet(orderNo);
         if (!"COMPLIANCE_PASSED".equals(o.getStatus())) {
             throw new ApiException(400, "订单未通过合规检查: " + o.getStatus());
+        }
+        // v2.2.43 必须先签约
+        if (!"CONTRACT_SIGNED".equals(o.getStatus())) {
+            throw new ApiException(400, "订单未签约: " + o.getStatus() + "，请先调用 /contract/generate 和 /contract/sign");
         }
         o.setStatus("PAYING");
         o.setUpdatedAt(LocalDateTime.now());

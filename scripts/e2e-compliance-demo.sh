@@ -3,13 +3,14 @@
 # OnlineChat 端到端合规化购买演示 (v2.2.42)
 # =====================================================
 #
-# 演示场景:
+# 演示场景 (v2.2.43 加签约):
 #   1. 客户 c-customer004 登录 (有 KYC + 持仓)
 #   2. 风险评估 (适度型)
 #   3. 购买 50000 元 稳健理财 1 号
 #   4. 4 道合规检查 (实名/风险/适配/AML)
-#   5. 一键支付 (mock 银行)
-#   6. 查询持仓变化
+#   5. 电子签约 (生成合同 + RSA-PSS 签名)
+#   6. 一键支付 (mock 银行)
+#   7. 查询持仓变化
 #
 # 用法:
 #   bash scripts/e2e-compliance-demo.sh
@@ -39,7 +40,7 @@ echo "============================================================"
 
 # ========== 1. 登录 ==========
 echo
-echo "[1/8] 客户 $USERNAME 登录"
+echo "[1/10] 客户 $USERNAME 登录"
 
 LOGIN_RESP=$(curl -s -X POST "$GATEWAY/auth/login" \
   -H "Content-Type: application/json" \
@@ -56,7 +57,7 @@ echo "  → customerId=$CUSTOMER_ID"
 
 # ========== 2. KYC 状态查询 ==========
 echo
-echo "[2/8] 查询 KYC 状态"
+echo "[2/10] 查询 KYC 状态"
 KYC_RESP=$(curl -s "$CS_IM/kyc/my-status?customerId=$CUSTOMER_ID" 2>&1 | head -c 500)
 echo "  resp: $KYC_RESP"
 if echo "$KYC_RESP" | grep -qE '"status":"COMPLETED"|"completed":true|"status":".*COMPLETED' ; then
@@ -70,7 +71,7 @@ fi
 
 # ========== 3. 风险评估 ==========
 echo
-echo "[3/8] 提交风险评估问卷 (保守型)"
+echo "[3/10] 提交风险评估问卷 (保守型)"
 RISK_RESP=$(curl -s -X POST "$CS_IM/risk/assess" \
   -H "Content-Type: application/json" \
   -d "{
@@ -95,7 +96,7 @@ fi
 
 # ========== 4. 创建订单 ==========
 echo
-echo "[4/8] 创建订单 (稳健理财 1 号 50000元)"
+echo "[4/10] 创建订单 (稳健理财 1 号 50000元)"
 ORDER_RESP=$(curl -s -X POST "$CS_IM/order/create" \
   -H "Content-Type: application/json" \
   -d "{
@@ -114,7 +115,7 @@ fi
 
 # ========== 5. 风险评估 (order 级别) ==========
 echo
-echo "[5/8] 订单风险评估"
+echo "[5/10] 订单风险评估"
 ASSESS_RESP=$(curl -s -X POST "$CS_IM/order/$ORDER_NO/assess")
 echo "  resp: ${ASSESS_RESP:0:200}"
 if echo "$ASSESS_RESP" | grep -q '"status":"RISK_ASSESSED"'; then
@@ -125,7 +126,7 @@ fi
 
 # ========== 6. 合规检查 ==========
 echo
-echo "[6/8] 合规检查 (4 道关: 实名/风险/适配/AML)"
+echo "[6/10] 合规检查 (4 道关: 实名/风险/适配/AML)"
 COMP_RESP=$(curl -s -X POST "$CS_IM/order/$ORDER_NO/compliance")
 echo "  resp: ${COMP_RESP:0:500}"
 COMPLIANCE=$(echo "$COMP_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('complianceResult',''))" 2>/dev/null)
@@ -139,26 +140,67 @@ else
     warn "合规检查未知结果: $COMP_RESP"
 fi
 
-# ========== 7. 支付 ==========
+# ========== 7. 生成合同 (v2.2.43 签约) ==========
 echo
-echo "[7/8] 支付 (mock 银行)"
+echo "[7/10] 生成电子合同 (合同编号 + SHA256 hash)"
 if [ "$COMPLIANCE" = "PASS" ]; then
+    CONT_RESP=$(curl -s -X POST "$CS_IM/order/$ORDER_NO/contract/generate" \
+      -H "Content-Type: application/json" \
+      -d '{"templateId":"TPL-FIN-001"}')
+    echo "  resp: ${CONT_RESP:0:400}"
+    CONTRACT_NO=$(echo "$CONT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('contractNo',''))" 2>/dev/null)
+    HASH=$(echo "$CONT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('contentHash',''))" 2>/dev/null)
+    if [ -n "$CONTRACT_NO" ] && [ -n "$HASH" ]; then
+        ok "✓ 合同生成: $CONTRACT_NO (hash: ${HASH:0:16}...)"
+    else
+        fail "合同生成失败"
+    fi
+else
+    echo "  ⊘ 跳过合同生成 (合规未通过)"
+fi
+
+# ========== 8. 客户签约 (v2.2.43 RSA-PSS 签名) ==========
+echo
+echo "[8/10] 客户签约 (RSA-PSS-SHA256 mock 签名)"
+if [ -n "$CONTRACT_NO" ]; then
+    SIGN_RESP=$(curl -s -X POST "$CS_IM/order/$ORDER_NO/contract/sign" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"contractNo\":\"$CONTRACT_NO\",
+        \"publicKey\":\"-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuMock\n-----END PUBLIC KEY-----\",
+        \"signature\":\"MOCK_RSA_PSS_SIGNATURE_BASE64\",
+        \"signedIp\":\"127.0.0.1\"
+      }")
+    echo "  resp: ${SIGN_RESP:0:300}"
+    if echo "$SIGN_RESP" | grep -q '"status":"CONTRACT_SIGNED"'; then
+        ok "✓ 签约成功 → CONTRACT_SIGNED"
+    else
+        fail "签约失败"
+    fi
+else
+    echo "  ⊘ 跳过签约 (无合同)"
+fi
+
+# ========== 9. 支付 ==========
+echo
+echo "[9/10] 支付 (mock 银行)"
+if [ "$COMPLIANCE" = "PASS" ] && [ -n "$CONTRACT_NO" ]; then
     PAY_RESP=$(curl -s -X POST "$CS_IM/order/$ORDER_NO/pay" \
       -H "Content-Type: application/json" \
       -d '{"method":"MOCK_BANK"}')
     echo "  resp: ${PAY_RESP:0:300}"
     if echo "$PAY_RESP" | grep -q '"status":"SETTLED"'; then
-        ok "✓ 支付成功，订单 SETTLED"
+        ok "✓ 支付成功，订单 SETTLED + 持仓已生成"
     else
-        fail "支付失败"
+        fail "支付失败 (检查是否需要先签约)"
     fi
 else
-    echo "  ⊘ 跳过支付 (合规未通过)"
+    echo "  ⊘ 跳过支付"
 fi
 
 # ========== 8. 查询持仓 ==========
 echo
-echo "[8/8] 查询客户持仓"
+echo "[10/10] 查询客户持仓"
 HOLD_RESP=$(curl -s "$CS_IM/order/holdings?customerId=$CUSTOMER_ID")
 echo "  resp: ${HOLD_RESP:0:500}"
 HOLDING_COUNT=$(echo "$HOLD_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('data',[])))" 2>/dev/null)

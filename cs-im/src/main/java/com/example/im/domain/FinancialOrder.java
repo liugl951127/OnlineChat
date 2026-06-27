@@ -46,6 +46,12 @@ public class FinancialOrder {
     private LocalDateTime completedAt;
     /** 赎回时间 */
     private LocalDateTime redeemedAt;
+    /** 合同编号 (v2.2.43) */
+    private String contractNo;
+    /** 合同 hash */
+    private String contractHash;
+    /** 签约时间 */
+    private LocalDateTime signedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer deleted;

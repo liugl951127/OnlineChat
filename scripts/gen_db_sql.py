@@ -92,9 +92,11 @@ def parse_domain(java_file):
             # 根据名字猜长度
             if any(k in name.lower() for k in ['no', 'code', 'id', 'type', 'status', 'role', 'level', 'channel', 'name', 'category']):
                 sql_type = "VARCHAR(64)"
+            elif 'hash' in name.lower():
+                sql_type = "VARCHAR(64)"  # SHA256 hex = 64 chars
             elif 'url' in name.lower() or 'img' in name.lower():
                 sql_type = "VARCHAR(512)"
-            elif 'content' in name.lower() or 'json' in name.lower() or 'text' in name.lower() or 'remark' in name.lower():
+            elif 'content' in name.lower() or 'json' in name.lower() or 'text' in name.lower() or 'remark' in name.lower() or 'signature' in name.lower():
                 sql_type = "TEXT"
             elif 'raw_json' in name.lower():
                 sql_type = "TEXT"

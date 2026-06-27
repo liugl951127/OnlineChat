@@ -41,6 +41,7 @@ public class FinancialOrderController {
 
     /** 金融订单业务层 */
     private final FinancialOrderService orderService;
+    private final com.example.im.service.ContractService contractService;
 
     /**
      * 创建订单（草稿状态）
@@ -78,6 +79,27 @@ public class FinancialOrderController {
     @PostMapping("/{orderNo}/compliance")
     public ApiResponse<FinancialOrder> compliance(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.runCompliance(orderNo));
+    }
+
+    /**
+     * 生成合同（v2.2.43 合规检查通过后调用）
+     */
+    @PostMapping("/{orderNo}/contract/generate")
+    public ApiResponse<com.example.im.domain.Contract> generateContract(@PathVariable String orderNo) {
+        return ApiResponse.ok(orderService.generateContract(orderNo));
+    }
+
+    /**
+     * 客户签约 → 订单状态变 CONTRACT_SIGNED
+     */
+    @PostMapping("/{orderNo}/contract/sign")
+    public ApiResponse<FinancialOrder> signContract(@PathVariable String orderNo,
+                                                    @RequestBody SignContractReq req) {
+        // 1) 调 ContractService 签名
+        contractService.signContract(req.getContractNo(), req.getPublicKey(),
+                req.getSignature(), req.getSignedIp());
+        // 2) 订单状态跳 CONTRACT_SIGNED
+        return ApiResponse.ok(orderService.markContractSigned(orderNo));
     }
 
     /**
@@ -188,5 +210,16 @@ public class FinancialOrderController {
         private String agentUsername;
         /** 5 题问卷答案（可空，若客户已评估过则跳过） */
         private Map<String, Object> riskAnswers;
+    }
+
+    /**
+     * 签约请求体 (v2.2.43)
+     */
+    @Data
+    public static class SignContractReq {
+        private String contractNo;
+        private String publicKey;
+        private String signature;
+        private String signedIp;
     }
 }
