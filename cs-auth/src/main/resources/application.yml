@@ -73,7 +73,7 @@ cs:
     secret: ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK
     ttl-ms: 86400000
   sms:
-    mock: true
+    mock: false
     ttl-seconds: 300
     length: 6
   phone:
@@ -84,12 +84,12 @@ oauth:
     client-id: demo-github-client-id
     client-secret: demo-github-secret
     redirect-uri: https://yourdomain.com/auth/github/callback
-    mock: true
+    mock: false
   google:
     client-id: demo-google-client-id
     client-secret: demo-google-secret
     redirect-uri: https://yourdomain.com/auth/google/callback
-    mock: true
+    mock: false
 
 logging:
   level:
@@ -127,13 +127,13 @@ wechat:
   oa:
     app-id: ${WX_OA_APP_ID:demo-app-id}
     app-secret: ${WX_OA_APP_SECRET:demo-app-secret}
-    mock: ${WX_OA_MOCK:true}
+    mock: ${WX_OA_MOCK:false}
   work:
     corp-id: ${WX_WORK_CORP_ID:demo-corp-id}
     corp-secret: ${WX_WORK_CORP_SECRET:demo-corp-secret}
     agent-id: ${WX_WORK_AGENT_ID:1000001}
-    mock: ${WX_WORK_MOCK:true}
+    mock: ${WX_WORK_MOCK:false}
   mini:
     app-id: ${WX_MINI_APP_ID:demo-mini-app-id}
     app-secret: ${WX_MINI_APP_SECRET:demo-mini-app-secret}
-    mock: ${WX_MINI_MOCK:true}
+    mock: ${WX_MINI_MOCK:false}

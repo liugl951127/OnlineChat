@@ -39,3 +39,16 @@ logging:
     org.hibernate.SQL: INFO
     org.springframework.kafka: WARN
     org.apache.kafka: WARN
+# 测试环境默认开 Mock，避免调真实外部 API
+kyc:
+  mock:
+    ocr: true
+    liveness: true
+    face-match: true
+    video-record: true
+    bank-card: true
+    risk-control: true
+
+llm:
+  provider: mock
+  model: mock-v1
