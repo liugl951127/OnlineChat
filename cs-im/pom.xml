@@ -73,5 +73,6 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
+        <!-- 百度 AI 不引 SDK，直接调 REST API（零依赖） -->
     </dependencies>
 </project>
