@@ -1,5 +1,6 @@
 package com.example.im.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -98,8 +99,8 @@ public class OfflineMessageStore {
             List<Map<String, Object>> result = new ArrayList<>();
             for (int i = raw.size() - 1; i >= 0; i--) {
                 try {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> msg = json.readValue(raw.get(i), Map.class);
+                    // 使用 TypeReference 指定泛型类型，彻底避免 unchecked 警告
+                    Map<String, Object> msg = json.readValue(raw.get(i), new TypeReference<Map<String, Object>>() {});
                     result.add(msg);
                 } catch (Exception ignored) {}
             }

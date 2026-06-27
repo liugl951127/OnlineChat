@@ -2,6 +2,7 @@ package com.example.auth.service;
 
 import com.example.auth.domain.WechatUser;
 import com.example.auth.repo.WechatUserRepo;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -116,8 +117,8 @@ public class WxMiniService {
         );
         try {
             String body = http.getForObject(url, String.class);
-            @SuppressWarnings("unchecked")
-            Map<String, String> resp = json.readValue(body, Map.class);
+            // 使用 TypeReference 指定泛型类型，彻底避免 unchecked 警告
+            Map<String, String> resp = json.readValue(body, new TypeReference<Map<String, String>>() {});
             if (resp.containsKey("errcode") && !"0".equals(resp.get("errcode"))) {
                 throw new RuntimeException("微信登录失败: " + resp.get("errmsg"));
             }

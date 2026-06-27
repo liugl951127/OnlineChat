@@ -96,8 +96,9 @@ public class KafkaConfig {
     // ============ 生产者 ============
     @Bean
     public ProducerFactory<String, Object> producerFactory(KafkaProperties props) {
-        // Spring Boot 3.2+ 推荐使用 buildProducerProperties(SslBundles) 代替无参版本（已 @Deprecated）
-        Map<String, Object> cfg = new HashMap<>(props.buildProducerProperties(null));
+        // Spring Boot 3.x 推荐使用 props.getProducer().buildProperties(SslBundles)
+        // 代替 props.buildProducerProperties(SslBundles)（后者已 @Deprecated）
+        Map<String, Object> cfg = new HashMap<>(props.getProducer().buildProperties(null));
         cfg.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         cfg.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         cfg.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
@@ -119,8 +120,9 @@ public class KafkaConfig {
     // ============ 消费者 ============
     @Bean
     public ConsumerFactory<String, ChatMessageEvent> chatMessageConsumerFactory(KafkaProperties props) {
-        // Spring Boot 3.2+ 推荐使用 buildConsumerProperties(SslBundles) 代替无参版本（已 @Deprecated）
-        Map<String, Object> cfg = new HashMap<>(props.buildConsumerProperties(null));
+        // Spring Boot 3.x 推荐使用 props.getConsumer().buildProperties(SslBundles)
+        // 代替 props.buildConsumerProperties(SslBundles)（后者已 @Deprecated）
+        Map<String, Object> cfg = new HashMap<>(props.getConsumer().buildProperties(null));
         cfg.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         cfg.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         cfg.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
