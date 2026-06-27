@@ -85,3 +85,20 @@ logging:
     com.example.message: INFO
     org.apache.kafka: WARN
     org.springframework.kafka: INFO
+
+# Actuator (Spring Boot 3 默认不暴露任何端点)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

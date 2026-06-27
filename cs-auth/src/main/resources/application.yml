@@ -96,6 +96,23 @@ logging:
     com.example: DEBUG
     org.hibernate.SQL: INFO
 
+# Actuator 健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
 ---
 spring:
   config:

@@ -179,6 +179,13 @@ export const wxOaH5 = {
 }
 
 // ============= Admin =============
+export const offline = {
+  list: userId => request.get('/message/offline/list', { params: { userId } }),
+  drain: userId => request.post('/message/offline/drain', { userId }),
+  peek: (userId, limit = 20) => request.get('/message/offline/peek', { params: { userId, limit } }),
+  size: userId => request.get('/message/offline/size', { params: { userId } })
+}
+
 export const admin = {
   users: params => request.get('/admin/users', { params }),
   sessions: params => request.get('/admin/sessions', { params }),
