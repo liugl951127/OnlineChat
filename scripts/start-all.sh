@@ -13,6 +13,29 @@ NACOS_ARGS="--spring.cloud.nacos.discovery.enabled=false \
             --spring.cloud.nacos.config.enabled=false \
             --spring.cloud.nacos.config.import-check.enabled=false"
 
+# cs-im 需要 OpenCV native 库 (libgtk-x11-2.0 + jniopencv_highgui)
+# 解压 javacv-platform jar 到 /tmp/jni/org/bytedeco/opencv/
+if [ ! -f /tmp/jni/org/bytedeco/opencv/org/bytedeco/opencv/linux-x86_64/libjniopencv_highgui.so ]; then
+  echo "🔧 准备 OpenCV native 库..."
+  mkdir -p /tmp/jni/org/bytedeco/opencv
+  if [ -f /root/.m2/repository/org/bytedeco/opencv/4.9.0-1.5.10/opencv-4.9.0-1.5.10-linux-x86_64.jar ]; then
+    cd /tmp/jni/org/bytedeco/opencv && \
+      unzip -q -o /root/.m2/repository/org/bytedeco/opencv/4.9.0-1.5.10/opencv-4.9.0-1.5.10-linux-x86_64.jar
+  elif [ -f /root/.javacpp/cache/opencv-4.9.0-1.5.10-linux-x86_64.jar ]; then
+    cd /tmp/jni/org/bytedeco/opencv && \
+      unzip -q -o /root/.javacpp/cache/opencv-4.9.0-1.5.10-linux-x86_64.jar
+  else
+    echo "❌ 找不到 opencv jar，请先运行 mvn test 触发 javacpp 下载"
+  fi
+  cd "$ROOT"
+fi
+# 检查 libgtk2 系统库
+if ! ldconfig -p | grep -q "libgtk-x11-2.0.so.0"; then
+  echo "🔧 安装 libgtk2 系统库..."
+  apt-get install -y libgtk2.0-0 libgtk-3-0 2>&1 | tail -3
+fi
+JVM_NATIVE="-Djava.library.path=/tmp/jni/org/bytedeco/opencv/org/bytedeco/opencv/linux-x86_64"
+
 mkdir -p logs
 
 start_one() {
@@ -22,7 +45,7 @@ start_one() {
   local logfile="logs/${name}.log"
 
   echo "🚀 启动 $name ..."
-  nohup java -jar "$jar" $NACOS_ARGS $extra > "$logfile" 2>&1 &
+  nohup java $JVM_NATIVE -jar "$jar" $NACOS_ARGS $extra > "$logfile" 2>&1 &
   local pid=$!
   echo "$pid" > "logs/${name}.pid"
   echo "   PID=$pid  log=$logfile"
