@@ -33,7 +33,7 @@ CREATE TABLE wechat_user (
     provider_user_id      VARCHAR(64) NULL,
     phone_enc             VARCHAR(255) NULL,
     phone_verified        INT NULL,
-    password_hash         VARCHAR(64) NULL,
+    password_hash         VARCHAR(255) NULL,
     nickname              VARCHAR(64) NULL,
     avatar                VARCHAR(255) NULL,
     phone_masked          VARCHAR(255) NULL,
@@ -48,7 +48,9 @@ CREATE TABLE wechat_user (
     updated_at            DATETIME NULL,
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='WechatUser';
 
 -- ============================================================
@@ -152,7 +154,9 @@ CREATE TABLE bill (
     created_at            DATETIME NULL,
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bill';
 
 -- ChatMessage（自动生成）
@@ -195,7 +199,9 @@ CREATE TABLE chat_session (
     INDEX idx_customer (customer_id),
     INDEX idx_agent (agent_username),
     INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ChatSession';
 
 -- ComplianceCheck（自动生成）
@@ -234,7 +240,9 @@ CREATE TABLE contract (
     updated_at            DATETIME NULL,
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Contract';
 
 -- Faq（自动生成）
@@ -417,7 +425,9 @@ CREATE TABLE product (
     created_at            DATETIME NULL,
     updated_at            DATETIME NULL,
     INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Product';
 
 -- RiskAssessment（自动生成）
@@ -431,7 +441,9 @@ CREATE TABLE risk_assessment (
     expires_at            DATETIME NULL,
     created_at            DATETIME NULL,
     INDEX idx_customer (customer_id),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RiskAssessment';
 
 -- ScreenShareSession（自动生成）
@@ -548,3 +560,23 @@ INSERT INTO product (product_code, name, product_type, risk_level, min_amount, y
 SELECT 'cs_auth' AS db, COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'cs_auth'
 UNION ALL
 SELECT 'cs_im', COUNT(*) FROM information_schema.tables WHERE table_schema = 'cs_im';
+-- =====================================================
+-- cs_message 表（v2.2.52 补建）
+-- =====================================================
+DROP TABLE IF EXISTS cs_message.offline_message;
+CREATE TABLE cs_message.offline_message (
+    id          BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id     VARCHAR(64) NULL,
+    msg_id      VARCHAR(64) NULL,
+    session_id  BIGINT NULL,
+    sender_id   VARCHAR(64) NULL,
+    msg_type    VARCHAR(32) NULL,
+    payload     TEXT NULL,
+    delivered   TINYINT(1) NOT NULL DEFAULT 0,
+    expires_at  DATETIME NULL,
+    created_at  DATETIME NULL,
+    INDEX idx_user (user_id),
+    INDEX idx_session (session_id),
+    INDEX idx_delivered (delivered),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OfflineMessage';

@@ -1,6 +1,7 @@
 package com.example.im.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -72,4 +73,9 @@ public class Contract {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 逻辑删除标记 (0=未删, 1=已删) */
+
+    @TableLogic
+
+    private Integer deleted;
 }

@@ -1,6 +1,7 @@
 package com.example.im.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -28,6 +29,11 @@ public class ChatSession {
     private String endedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 逻辑删除标记 (0=未删, 1=已删) */
+
+    @TableLogic
+
+    private Integer deleted;
     /** 视频回放 URL（v1.9.0） */
     private String videoReplayUrl;
 }

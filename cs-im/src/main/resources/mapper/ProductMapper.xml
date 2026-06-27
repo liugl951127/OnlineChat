@@ -3,18 +3,18 @@
 <mapper namespace="com.example.im.repo.ProductMapper">
 
     <select id="findByCode" resultType="com.example.im.domain.Product">
-        SELECT * FROM product WHERE product_code = #{code} AND (is_deleted = 0 OR is_deleted IS NULL) LIMIT 1
+        SELECT * FROM product WHERE product_code = #{code} AND (deleted = 0 OR deleted IS NULL) LIMIT 1
     </select>
 
     <select id="findByProductType" resultType="com.example.im.domain.Product">
         SELECT * FROM product
-        WHERE product_type = #{productType} AND status = 'ON_SALE' AND (is_deleted = 0 OR is_deleted IS NULL)
+        WHERE product_type = #{productType} AND status = 'ON_SALE' AND (deleted = 0 OR deleted IS NULL)
         ORDER BY id ASC
     </select>
 
     <select id="findByStatus" resultType="com.example.im.domain.Product">
         SELECT * FROM product
-        WHERE status = #{status} AND (is_deleted = 0 OR is_deleted IS NULL)
+        WHERE status = #{status} AND (deleted = 0 OR deleted IS NULL)
         ORDER BY id ASC
     </select>
 
