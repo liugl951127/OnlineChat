@@ -5,7 +5,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.kafka.annotation.EnableKafka;
 
-@SpringBootApplication(scanBasePackages = {"com.example.message", "com.example.common"})
+@SpringBootApplication(scanBasePackages = {"com.example.message", "com.example.common"}, exclude = {
+    org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class
+})
 @EnableDiscoveryClient
 @EnableKafka
 public class MessageApplication {
