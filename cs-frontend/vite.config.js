@@ -31,12 +31,12 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE || 'http://localhost:9000',
+          target: env.VITE_API_BASE || 'http://127.0.0.1:9000',
           changeOrigin: true,
           rewrite: p => p.replace(/^\/api/, '/api')
         },
         '/auth': {
-          target: env.VITE_API_BASE || 'http://localhost:9000',
+          target: env.VITE_API_BASE || 'http://127.0.0.1:9000',
           changeOrigin: true,
           // 只代理 callback-json / silent / login 等业务端点，
           // authorize/callback 走前端路由处理（避免循环 302）

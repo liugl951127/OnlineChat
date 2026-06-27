@@ -38,7 +38,7 @@ docker-compose logs -f cs-auth
 
 # 4. 验证健康
 curl http://localhost:9001/actuator/health
-curl http://localhost:9000/druid/  # Druid 监控（admin/admin123）
+curl http://127.0.0.1:9000/druid/  # Druid 监控（admin/admin123）
 ```
 
 ## Flyway 迁移

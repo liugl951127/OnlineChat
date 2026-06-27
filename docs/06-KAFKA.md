@@ -159,12 +159,12 @@ docker-compose logs -f cs-message
 测试发送消息：
 ```bash
 # 1. 登录获取 token
-TOKEN=$(curl -s -X POST http://localhost:9000/auth/login \
+TOKEN=$(curl -s -X POST http://127.0.0.1:9000/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"test","password":"test123"}' | jq -r .data.token)
 
 # 2. 发送消息
-curl -X POST http://localhost:9000/im/send \
+curl -X POST http://127.0.0.1:9000/im/send \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"sessionId":"s1","content":"hello kafka"}'

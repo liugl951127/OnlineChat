@@ -95,7 +95,7 @@ docker-compose up -d mysql redis nacos
 docker-compose up -d cs-auth cs-robot cs-im cs-trade cs-gateway
 
 # 3. 一件访问
-open http://localhost:9000/
+open http://127.0.0.1:9000/
 ```
 
 ## OAuth 回调 URL 配置
@@ -133,13 +133,13 @@ WeChat OA:
 admin / admin                → 后管
 
 # 静默登录
-open http://localhost:9000/login/
+open http://127.0.0.1:9000/login/
 
 # 手机号登录（Mock 模式看 debugCode）
-open http://localhost:9000/login/
+open http://127.0.0.1:9000/login/
 
 # GitHub OAuth（Mock 模式）
-http://localhost:9000/auth/github/authorize?redirect_uri=http://localhost:9000/auth/github/callback
+http://127.0.0.1:9000/auth/github/authorize?redirect_uri=http://127.0.0.1:9000/auth/github/callback
 ```
 
 ## 升级流程

@@ -71,10 +71,10 @@ cd cs-gateway && mvn spring-boot:run &
 
 ### 3. 访问入口
 
-- 引导页: http://localhost:9000/
-- 客户 H5: http://localhost:9000/customer/
-- 坐席工作台: http://localhost:9000/agent/
-- 后管系统: http://localhost:9000/admin/  (admin/admin)
+- 引导页: http://127.0.0.1:9000/
+- 客户 H5: http://127.0.0.1:9000/customer/
+- 坐席工作台: http://127.0.0.1:9000/agent/
+- 后管系统: http://127.0.0.1:9000/admin/  (admin/admin)
 
 ## 富文本消息协议
 
