@@ -42,7 +42,7 @@ spring:
           max-idle: 30
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:127.0.0.1:9092}
     consumer:
       group-id: cs-message-group
       auto-offset-reset: earliest

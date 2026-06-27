@@ -50,7 +50,7 @@ spring:
           min-idle: 10
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:127.0.0.1:9092}
     consumer:
       group-id: cs-im-group
       auto-offset-reset: earliest
