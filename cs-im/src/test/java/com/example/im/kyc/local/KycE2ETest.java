@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("mysql-it")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@EnabledIf("isIdCardTestImageAvailable")
+
 class KycE2ETest {
 
     @Autowired OcrService ocrService;
@@ -53,8 +53,18 @@ class KycE2ETest {
 
     @MockBean SimpMessagingTemplate messagingTemplate;
 
-    private static final Path FRONT_IMG = Paths.get("src/test/resources/test-images/idcard_front_test.png");
-    private static final Path BACK_IMG = Paths.get("src/test/resources/test-images/idcard_back_test.png");
+    private static final Path FRONT_IMG = findTestBase().resolve("test-images/idcard_front_test.png");
+    private static final Path BACK_IMG = findTestBase().resolve("test-images/idcard_back_test.png");
+
+    private static Path findTestBase() {
+        String basedir = System.getProperty("project.basedir");
+        if (basedir != null) return Paths.get(basedir, "src/test/resources");
+        // 尝试 user.dir 智能探测：可能是 cs-im 或 online-chat
+        Path p = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
+        Path candidate = p.resolve("src/test/resources");
+        if (Files.exists(candidate)) return candidate;
+        return p.getParent().resolve("cs-im/src/test/resources");
+    }
 
     private static String frontBase64;
     private static String backBase64;
@@ -161,7 +171,8 @@ class KycE2ETest {
         assertThat(verify.get("verified")).isEqualTo(true);
 
         BankCard card = new BankCard();
-        card.setCustomerId("e2e-customer-step6");
+        String bankCust = "e2e-customer-step6-" + System.currentTimeMillis();
+        card.setCustomerId(bankCust);
         card.setCardNoMasked("6222***********0123");
         card.setCardName("张三");
         card.setCardType("DEBIT");
@@ -171,7 +182,7 @@ class KycE2ETest {
         bankCardMapper.insert(card);
 
         BankCard fromDb = bankCardMapper.selectOne(
-            new QueryWrapper<BankCard>().eq("customer_id", "e2e-customer-step6"));
+            new QueryWrapper<BankCard>().eq("customer_id", bankCust));
         assertThat(fromDb).isNotNull();
         assertThat(fromDb.getVerified()).isEqualTo(1);
         System.out.println("[KYC-E2E] ✓ 步骤6: 银行卡鉴权 + 入库 (id=" + fromDb.getId() + ")");
