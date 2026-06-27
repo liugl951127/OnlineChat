@@ -14,11 +14,11 @@ spring:
   cloud:
     nacos:
       discovery:
-        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
       config:
-        enabled: ${NACOS_CONFIG_ENABLED:false}
+        enabled: ${NACOS_CONFIG_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
 

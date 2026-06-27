@@ -30,13 +30,13 @@ spring:
     nacos:
       discovery:
         # 生产必须启用服务发现
-        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
         password: ${NACOS_PASS:nacos}
       config:
-        enabled: ${NACOS_CONFIG_ENABLED:false}
+        enabled: ${NACOS_CONFIG_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         file-extension: yaml
         namespace: ${NACOS_NAMESPACE:prod}
@@ -46,36 +46,36 @@ spring:
       # 生产用 http://127.0.0.1:9001（通过 Nacos 服务发现 + Ribbon 负载均衡）
       routes:
         - id: cs-auth
-          uri: http://127.0.0.1:9001
+          uri: lb://cs-auth
           predicates:
             - Path=/auth/**,/auth/actuator/**,/api/auth/**
         - id: cs-robot
-          uri: http://127.0.0.1:9002
+          uri: lb://cs-robot
           predicates:
             - Path=/robot/**
         - id: cs-im
-          uri: http://127.0.0.1:9003
+          uri: lb://cs-im
           predicates:
             - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
         - id: cs-trade
-          uri: http://127.0.0.1:9004
+          uri: lb://cs-trade
           predicates:
             - Path=/trade/**
         # K8s 探针
         - id: auth-health
-          uri: http://127.0.0.1:9001
+          uri: lb://cs-auth
           predicates:
             - Path=/actuator/auth/**
           filters:
             - StripPrefix=1
         - id: im-health
-          uri: http://127.0.0.1:9003
+          uri: lb://cs-im
           predicates:
             - Path=/actuator/im/**
           filters:
             - StripPrefix=1
         - id: message-health
-          uri: http://127.0.0.1:9005
+          uri: lb://cs-message
           predicates:
             - Path=/actuator/message/**,/message/actuator/**
           filters:

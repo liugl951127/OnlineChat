@@ -92,7 +92,9 @@ function handleLoginSuccess(data) {
 
 function oauthLogin(provider) {
   // 拼到前端路由（如 /#/auth/wechat-oa/callback），后端 302 后会带上 code/token 回到这里
-  const redirectUri = `${location.origin}/#${window.location.pathname}auth/${provider}/callback`
+  // 注意：redirectUri 不能含 # (会被 servlet encode 成 %23)，必须用真实 URL path
+  // SPA 通过 vue-router 的 /auth/:provider/callback 路由处理 OAuthCallback.vue
+  const redirectUri = `${location.origin}/auth/${provider}/callback`
   // 直接用 window.location 跳转，让后端返回 302（不走 axios）
   location.href = `/auth/${provider}/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
 }

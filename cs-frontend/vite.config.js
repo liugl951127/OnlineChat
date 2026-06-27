@@ -37,7 +37,22 @@ export default defineConfig(({ mode }) => {
         },
         '/auth': {
           target: env.VITE_API_BASE || 'http://localhost:9000',
-          changeOrigin: true
+          changeOrigin: true,
+          // 只代理 callback-json / silent / login 等业务端点，
+          // authorize/callback 走前端路由处理（避免循环 302）
+          bypass: (req) => {
+            const p = req.url.split('?')[0]
+            // 代理：后端 callback-json / silent / login 等
+            if (p.endsWith('/callback-json') || p.endsWith('/silent-login') ||
+                p.endsWith('/login') || p.endsWith('/register') || p.endsWith('/verify/phone')) {
+              return undefined  // 走 proxy
+            }
+            // 不代理：authorize / callback（这些走前端 vue-router）
+            if (p.endsWith('/authorize') || p.endsWith('/callback')) {
+              return '/index.html'  // 返回 SPA 入口，让 vue-router 处理
+            }
+            return undefined  // 默认走 proxy
+          }
         }
       }
     },
