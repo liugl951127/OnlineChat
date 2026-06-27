@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -22,6 +23,7 @@ import java.util.UUID;
 /**
  * 认证入口
  */
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -41,11 +43,38 @@ public class AuthController {
     }
 
     @GetMapping("/wechat-oa/authorize")
-    public void oaAuthorize(@RequestParam String redirectUri,
+    public void oaAuthorize(@RequestParam(required = false) String redirectUri,
                             @RequestParam(required = false) String state,
+                            @RequestHeader(value = "Referer", required = false) String referer,
+                            HttpServletRequest request,
                             HttpServletResponse resp) throws IOException {
+        // 开箱即用：如果前端没传 redirectUri，依次 fallback：
+        // 1. 请求参数 redirectUri
+        // 2. Referer header (从哪个页面点过来)
+        // 3. 从 Origin 或 X-Forwarded-Host 拼出绝对 URL
+        // 4. 默认使用 host + /auth/wechat-oa/callback-json (后端 API, SPA 后续轮询拿 token)
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/wechat-oa/callback-json");
         String s = state == null ? UUID.randomUUID().toString() : state;
-        resp.sendRedirect(authService.oaAuthorizeUrl(redirectUri, s));
+        log.info("[OAuth-Authorize] wechat-oa redirectUri={} state={}", finalRedirectUri, s);
+        resp.sendRedirect(authService.oaAuthorizeUrl(finalRedirectUri, s));
+    }
+
+    /**
+     * 返回 JSON 版本的 authorize URL (供 axios 调用，避开 location.href 重定向问题)
+     *
+     * <p>返回：{ url: "https://open.weixin.qq.com/connect/oauth2/authorize?..." }
+     * <p>前端拿 url 后 window.location.href = url 跳转。
+     */
+    @GetMapping("/wechat-oa/authorize-json")
+    public ApiResponse<Map<String, String>> oaAuthorizeJson(
+            @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String state,
+            @RequestHeader(value = "Referer", required = false) String referer,
+            HttpServletRequest request) {
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/wechat-oa/callback-json");
+        String s = state == null ? UUID.randomUUID().toString() : state;
+        String url = authService.oaAuthorizeUrl(finalRedirectUri, s);
+        return ApiResponse.ok(Map.of("url", url, "state", s));
     }
 
     @GetMapping("/wechat-oa/callback")
@@ -64,11 +93,27 @@ public class AuthController {
     }
 
     @GetMapping("/wechat-work/authorize")
-    public void workAuthorize(@RequestParam String redirectUri,
+    public void workAuthorize(@RequestParam(required = false) String redirectUri,
                               @RequestParam(required = false) String state,
+                              @RequestHeader(value = "Referer", required = false) String referer,
+                              HttpServletRequest request,
                               HttpServletResponse resp) throws IOException {
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/wechat-work/callback-json");
         String s = state == null ? UUID.randomUUID().toString() : state;
-        resp.sendRedirect(authService.workAuthorizeUrl(redirectUri, s));
+        log.info("[OAuth-Authorize] wechat-work redirectUri={} state={}", finalRedirectUri, s);
+        resp.sendRedirect(authService.workAuthorizeUrl(finalRedirectUri, s));
+    }
+
+    @GetMapping("/wechat-work/authorize-json")
+    public ApiResponse<Map<String, String>> workAuthorizeJson(
+            @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String state,
+            @RequestHeader(value = "Referer", required = false) String referer,
+            HttpServletRequest request) {
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/wechat-work/callback-json");
+        String s = state == null ? UUID.randomUUID().toString() : state;
+        String url = authService.workAuthorizeUrl(finalRedirectUri, s);
+        return ApiResponse.ok(Map.of("url", url, "state", s));
     }
 
     @GetMapping("/wechat-work/callback")
@@ -87,10 +132,25 @@ public class AuthController {
 
     // ============ GitHub OAuth ============
     @GetMapping("/github/authorize")
-    public void githubAuthorize(@RequestParam String redirectUri,
+    public void githubAuthorize(@RequestParam(required = false) String redirectUri,
                                  @RequestParam(required = false) String scope,
+                                 @RequestHeader(value = "Referer", required = false) String referer,
+                                 HttpServletRequest request,
                                  HttpServletResponse resp) throws IOException {
-        resp.sendRedirect(authService.githubAuthorizeUrl(redirectUri, scope));
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/github/callback-json");
+        log.info("[OAuth-Authorize] github redirectUri={} scope={}", finalRedirectUri, scope);
+        resp.sendRedirect(authService.githubAuthorizeUrl(finalRedirectUri, scope));
+    }
+
+    @GetMapping("/github/authorize-json")
+    public ApiResponse<Map<String, String>> githubAuthorizeJson(
+            @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String scope,
+            @RequestHeader(value = "Referer", required = false) String referer,
+            HttpServletRequest request) {
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/github/callback-json");
+        String url = authService.githubAuthorizeUrl(finalRedirectUri, scope);
+        return ApiResponse.ok(Map.of("url", url));
     }
 
     @GetMapping("/github/callback")
@@ -112,10 +172,27 @@ public class AuthController {
 
     // ============ Google OAuth ============
     @GetMapping("/google/authorize")
-    public void googleAuthorize(@RequestParam String redirectUri,
+    public void googleAuthorize(@RequestParam(required = false) String redirectUri,
                                  @RequestParam(required = false) String scope,
+                                 @RequestHeader(value = "Referer", required = false) String referer,
+                                 HttpServletRequest request,
                                  HttpServletResponse resp) throws IOException {
-        resp.sendRedirect(authService.googleAuthorizeUrl(redirectUri, scope));
+        String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/google/callback-json");
+        log.info("[OAuth-Authorize] google redirectUri={} scope={}", finalRedirectUri, scope);
+        resp.sendRedirect(authService.googleAuthorizeUrl(finalRedirectUri, scope));
+    }
+
+    @GetMapping("/google/authorize-json")
+    public ApiResponse<Map<String, String>> googleAuthorizeJson(
+            @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String redirect_uri,
+            @RequestHeader(value = "Referer", required = false) String referer,
+            HttpServletRequest request) {
+        String r = redirect_uri != null && !redirect_uri.isBlank() ? redirect_uri : redirectUri;
+        String finalRedirectUri = resolveRedirectUri(r, referer, request, "/auth/google/callback-json");
+        String url = authService.googleAuthorizeUrl(finalRedirectUri, scope);
+        return ApiResponse.ok(Map.of("url", url));
     }
 
     @GetMapping("/google/callback")
@@ -335,6 +412,44 @@ public class AuthController {
     private static String clientIp(HttpServletRequest req) {
         String xff = req.getHeader("X-Forwarded-For");
         return xff != null ? xff.split(",")[0] : req.getRemoteAddr();
+    }
+
+    /**
+     * 智能推断 OAuth redirect_uri（开箱即用核心）
+     *
+     * <p>优先级：
+     * <ol>
+     *   <li>请求参数 redirectUri（前端明确传的）</li>
+     *   <li>Referer header（从哪个页面点过来取 origin）</li>
+     *   <li>请求 Host / X-Forwarded-Host 拼 origin</li>
+     *   <li>默认值（后端 callback-json，前端轮询拿 token）</li>
+     * </ol>
+     */
+    private String resolveRedirectUri(String param, String referer,
+                                       HttpServletRequest request, String defaultPath) {
+        // 1. 参数优先
+        if (param != null && !param.isBlank()) {
+            return param;
+        }
+        // 2. Referer
+        if (referer != null && !referer.isBlank()) {
+            try {
+                java.net.URI u = java.net.URI.create(referer);
+                String origin = u.getScheme() + "://" + u.getHost()
+                        + (u.getPort() > 0 ? ":" + u.getPort() : "");
+                return origin + defaultPath;
+            } catch (Exception ignored) { }
+        }
+        // 3. 从 request host 拼
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host == null || host.isBlank()) host = request.getHeader("Host");
+        String scheme = request.getHeader("X-Forwarded-Proto");
+        if (scheme == null || scheme.isBlank()) scheme = request.getScheme();
+        if (host != null && !host.isBlank()) {
+            return scheme + "://" + host + defaultPath;
+        }
+        // 4. 默认本机（开发环境）
+        return "http://127.0.0.1:9001" + defaultPath;
     }
 
     @Data public static class SilentReq { private String tempCode; }

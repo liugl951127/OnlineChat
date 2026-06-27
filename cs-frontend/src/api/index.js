@@ -10,6 +10,9 @@ export const auth = {
   silent: data => request.post('/auth/silent', data),
   me: () => request.get('/auth/me'),
   logout: () => request.post('/auth/logout'),
+  /** v2.2.31: 拿 OAuth 授权 URL (JSON 形式，避开 PC 端 302 弹窗拦截) */
+  oauthAuthorizeJson: (provider, redirectUri) =>
+    request.get(`/auth/${provider}/authorize-json`, { params: { redirect_uri: redirectUri } }),
   githubUrl: redirect => request.get('/auth/github/authorize', { params: { redirect_uri: redirect } }),
   googleUrl: redirect => request.get('/auth/google/authorize', { params: { redirect_uri: redirect } })
 }

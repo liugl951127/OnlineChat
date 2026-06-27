@@ -44,11 +44,14 @@ export default defineConfig(({ mode }) => {
             const p = req.url.split('?')[0]
             // 代理：后端 callback-json / silent / login 等
             if (p.endsWith('/callback-json') || p.endsWith('/silent-login') ||
-                p.endsWith('/login') || p.endsWith('/register') || p.endsWith('/verify/phone')) {
+                p.endsWith('/login') || p.endsWith('/register') || p.endsWith('/verify/phone') ||
+                p.includes('/authorize-json') || p.includes('/js-sign')) {
               return undefined  // 走 proxy
             }
             // 不代理：authorize / callback（这些走前端 vue-router）
-            if (p.endsWith('/authorize') || p.endsWith('/callback')) {
+            // 注意：/callback-json 已经上面拦截，这里严格匹配 /callback
+            if ((p.endsWith('/authorize') || p.endsWith('/callback')) &&
+                !p.endsWith('/callback-json')) {
               return '/index.html'  // 返回 SPA 入口，让 vue-router 处理
             }
             return undefined  // 默认走 proxy

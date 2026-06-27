@@ -90,13 +90,31 @@ function handleLoginSuccess(data) {
   router.push({ name: map[next] || 'customer' })
 }
 
-function oauthLogin(provider) {
-  // 拼到前端路由（如 /#/auth/wechat-oa/callback），后端 302 后会带上 code/token 回到这里
-  // 注意：redirectUri 不能含 # (会被 servlet encode 成 %23)，必须用真实 URL path
-  // SPA 通过 vue-router 的 /auth/:provider/callback 路由处理 OAuthCallback.vue
-  const redirectUri = `${location.origin}/auth/${provider}/callback`
-  // 直接用 window.location 跳转，让后端返回 302（不走 axios）
-  location.href = `/auth/${provider}/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
+async function oauthLogin(provider) {
+  // 开箱即用：axios 拿 JSON 形式的 redirect URL（避免 PC 端 302 弹窗被拦截）
+  // 1. 先调 authorize-json 拿到微信授权 URL
+  // 2. window.location.href = url 跳转（这一步是必要的，PC 端会显示二维码）
+  try {
+    const { data } = await auth.oauthAuthorizeJson(provider)
+    if (data.code === 0 && data.data?.url) {
+      // mock 模式下 url 是 redirect_uri?code=MOCK-xxx，需要前端路由处理
+      // 真实模式下 url 是 open.weixin.qq.com/...，浏览器直接跳转
+      if (data.data.url.includes('mock=true')) {
+        // mock: 直接 window.location 跳转，前端路由会自动跳到 /auth/{provider}/callback
+        window.location.href = data.data.url
+      } else {
+        // 真实微信: 跳转
+        window.location.href = data.data.url
+      }
+      return
+    }
+    ElMessage.error(data.msg || '授权初始化失败')
+  } catch (e) {
+    ElMessage.error('网络错误: ' + (e.message || 'unknown'))
+    // 兜底: 用 location.href 302 流程
+    const redirectUri = `${location.origin}/auth/${provider}/callback`
+    location.href = `/auth/${provider}/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
+  }
 }
 </script>
 
