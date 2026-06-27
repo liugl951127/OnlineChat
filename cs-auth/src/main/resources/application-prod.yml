@@ -1,0 +1,119 @@
+# cs-auth 生产配置（prod profile）
+# 用法：java -jar cs-auth-1.7.1.jar --spring.profiles.active=prod
+
+server:
+  port: 9001
+  tomcat:
+    max-threads: 300
+    accept-count: 150
+
+spring:
+  application:
+    name: cs-auth
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:true}
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:cs_auth}?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:please-change-in-production}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 10
+      min-idle: 10
+      max-active: 100
+      max-wait: 30000
+      validation-query: SELECT 1
+      test-while-idle: true
+      filters: stat,wall,slf4j
+      stat-view-servlet:
+        enabled: true
+        login-username: ${DRUID_USER:admin}
+        login-password: ${DRUID_PASS:admin}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 100
+          max-idle: 30
+          min-idle: 5
+
+# 微信公众号（生产真实配置）
+wechat:
+  oa:
+    app-id: ${WX_OA_APP_ID:wx-your-real-app-id}
+    app-secret: ${WX_OA_APP_SECRET:your-real-secret}
+    mock: ${WX_OA_MOCK:false}    # 生产必须 false
+  work:
+    corp-id: ${WX_WORK_CORP_ID:your-corp-id}
+    corp-secret: ${WX_WORK_CORP_SECRET:your-secret}
+    agent-id: ${WX_WORK_AGENT_ID:1000001}
+    mock: ${WX_WORK_MOCK:false}
+  mini:
+    app-id: ${WX_MINI_APP_ID:your-mini-app-id}
+    app-secret: ${WX_MINI_APP_SECRET:your-secret}
+    mock: ${WX_MINI_MOCK:false}
+
+# OAuth 真实配置
+oauth:
+  github:
+    client-id: ${GITHUB_CLIENT_ID:real-id}
+    client-secret: ${GITHUB_CLIENT_SECRET:real-secret}
+    redirect-uri: ${PUBLIC_URL}/auth/github/callback
+    mock: ${GITHUB_OAUTH_MOCK:false}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:real-id}
+    client-secret: ${GOOGLE_CLIENT_SECRET:real-secret}
+    redirect-uri: ${PUBLIC_URL}/auth/google/callback
+    mock: ${GOOGLE_OAUTH_MOCK:false}
+
+# AES 加密
+cs:
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-in-production-32-byte-min-length-secret}
+    ttl-ms: ${JWT_TTL_MS:86400000}
+  phone:
+    secret: ${PHONE_AES_SECRET:please-change-this-32byte-aes-secret}
+
+logging:
+  level:
+    root: INFO
+    com.example: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.security: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+info:
+  app:
+    name: cs-auth
+    version: 1.7.1
+    profile: prod

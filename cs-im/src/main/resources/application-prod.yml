@@ -1,0 +1,123 @@
+# cs-im 生产配置（prod profile）
+
+server:
+  port: 9003
+  tomcat:
+    max-threads: 500
+    accept-count: 200
+  compression:
+    enabled: true
+
+spring:
+  application:
+    name: cs-im
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:true}
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:cs_im}?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:please-change-in-production}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 20
+      min-idle: 20
+      max-active: 200
+      max-wait: 30000
+      validation-query: SELECT 1
+      test-while-idle: true
+      filters: stat,wall,slf4j
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 50
+          min-idle: 10
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    consumer:
+      group-id: cs-im-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.common.kafka
+        spring.json.use.type.headers: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+
+# KYC 真实 API（不 mock）
+kyc:
+  mock:
+    ocr: ${KYC_OCR_MOCK:false}
+    liveness: ${KYC_LIVENESS_MOCK:false}
+    face-match: ${KYC_FACE_MOCK:false}
+    video-record: ${KYC_VIDEO_MOCK:false}
+    bank-card: ${KYC_BANK_MOCK:false}
+    risk-control: ${KYC_RISK_MOCK:false}
+
+baidu:
+  ocr:
+    app-id: ${BAIDU_OCR_APP_ID:real-app-id}
+    api-key: ${BAIDU_OCR_API_KEY:real-api-key}
+    secret-key: ${BAIDU_OCR_SECRET_KEY:real-secret}
+
+tencent:
+  ai:
+    secret-id: ${TENCENT_SECRET_ID:real-secret-id}
+    secret-key: ${TENCENT_SECRET_KEY:real-secret-key}
+
+# LLM 生产配置
+llm:
+  provider: ${LLM_PROVIDER:openai}
+  model: ${LLM_MODEL:gpt-3.5-turbo}
+  api-key: ${LLM_API_KEY:your-openai-key}
+
+logging:
+  level:
+    root: INFO
+    com.example.im: INFO
+    org.springframework.kafka: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+info:
+  app:
+    name: cs-im
+    version: 1.7.1
+    profile: prod

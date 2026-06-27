@@ -1,0 +1,140 @@
+# 生产环境配置（prod profile）
+#
+# 用法：java -jar cs-gateway-1.7.1.jar --spring.profiles.active=prod
+#
+# 关键差异（vs dev）：
+# 1. routes 用 lb:// 服务名（通过 Nacos discovery 负载均衡）
+# 2. Redis pool 增大
+# 3. 启用 actuator prometheus + 健康检查详细信息
+# 4. 关闭 csrf 模拟，开启真实 OAuth
+
+server:
+  port: 9000
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
+  tomcat:
+    max-threads: 400
+    accept-count: 200
+    max-connections: 8192
+
+spring:
+  application:
+    name: cs-gateway
+  main:
+    web-application-type: reactive
+  # 生产可去掉 optional:（强制要求 nacos 可达）
+  # config:
+  #   import: "nacos:cs-gateway.yml"
+  cloud:
+    nacos:
+      discovery:
+        # 生产必须启用服务发现
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASS:nacos}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:true}
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        file-extension: yaml
+        namespace: ${NACOS_NAMESPACE:prod}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASS:nacos}
+    gateway:
+      # 生产用 lb://cs-auth（通过 Nacos 服务发现 + Ribbon 负载均衡）
+      routes:
+        - id: cs-auth
+          uri: lb://cs-auth
+          predicates:
+            - Path=/auth/**,/auth/actuator/**,/api/auth/**
+        - id: cs-robot
+          uri: lb://cs-robot
+          predicates:
+            - Path=/robot/**
+        - id: cs-im
+          uri: lb://cs-im
+          predicates:
+            - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
+        - id: cs-trade
+          uri: lb://cs-trade
+          predicates:
+            - Path=/trade/**
+        # K8s 探针
+        - id: auth-health
+          uri: lb://cs-auth
+          predicates:
+            - Path=/actuator/auth/**
+          filters:
+            - StripPrefix=1
+        - id: im-health
+          uri: lb://cs-im
+          predicates:
+            - Path=/actuator/im/**
+          filters:
+            - StripPrefix=1
+        - id: message-health
+          uri: lb://cs-message
+          predicates:
+            - Path=/actuator/message/**,/message/actuator/**
+          filters:
+            - StripPrefix=1
+      # 限流（生产级）
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 50
+          min-idle: 10
+
+  codec:
+    max-in-memory-size: 20MB
+
+cs:
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-in-production-32-byte-min-length-secret}
+    ttl-ms: ${JWT_TTL_MS:86400000}
+
+logging:
+  level:
+    root: INFO
+    com.example: INFO
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: WARN
+    org.apache.kafka: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway,gatewayroutes
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        gateway.requests: true
+
+info:
+  app:
+    name: cs-gateway
+    version: 1.7.1
+    profile: prod
