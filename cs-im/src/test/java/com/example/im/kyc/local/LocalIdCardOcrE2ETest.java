@@ -22,11 +22,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>tess4j 5.13 + javacv Tesseract 5.3.4 在某些环境下有训练数据加载问题，
  * 这里直接用命令行 tesseract（生产接口完全等价）来验证 OCR 准确性。
  */
-@EnabledIf("isTestImageAvailable")
+//@EnabledIf("isTestImageAvailable")
 class LocalIdCardOcrE2ETest {
 
-    private static final Path FRONT_IMG = Paths.get("src/test/resources/test-images/idcard_front_test.png");
-    private static final Path BACK_IMG = Paths.get("src/test/resources/test-images/idcard_back_test.png");
+    private static final Path FRONT_IMG = findTestBase().resolve("test-images/idcard_front_test.png");
+    private static final Path BACK_IMG = findTestBase().resolve("test-images/idcard_back_test.png");
+
+    private static Path findTestBase() {
+        String basedir = System.getProperty("project.basedir");
+        if (basedir != null) return Paths.get(basedir, "src/test/resources");
+        return Paths.get("src/test/resources").toAbsolutePath();
+    }
 
     private static String frontBase64;
     private static String backBase64;
@@ -58,7 +64,22 @@ class LocalIdCardOcrE2ETest {
     private static String runTesseract(String imagePath) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
             "tesseract", imagePath, "stdout", "-l", "chi_sim");
-        pb.environment().put("TESSDATA_PREFIX", "src/main/resources/tessdata/");
+        // 智能定位 tessdata：可能是 cs-im/src 或 online-chat/src
+        String basedir = System.getProperty("project.basedir");
+        String tessPath;
+        if (basedir != null) {
+            tessPath = Paths.get(basedir, "src/main/resources/tessdata/").toString() + "/";
+        } else {
+            // user.dir 是 cs-im 或 online-chat
+            Path p = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
+            Path candidate = p.resolve("src/main/resources/tessdata");
+            if (Files.exists(candidate)) {
+                tessPath = candidate.toString() + "/";
+            } else {
+                tessPath = p.getParent().resolve("cs-im/src/main/resources/tessdata").toString() + "/";
+            }
+        }
+        pb.environment().put("TESSDATA_PREFIX", tessPath);
         pb.redirectErrorStream(true);
         Process proc = pb.start();
         byte[] out;

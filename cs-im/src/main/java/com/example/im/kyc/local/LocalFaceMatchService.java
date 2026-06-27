@@ -126,14 +126,14 @@ public class LocalFaceMatchService {
         Mat faceAMat = extractFace(imgA, faceA);
         Mat faceBMat = extractFace(imgB, faceB);
 
-        // 4) 计算 LBP 直方图
-        Mat histA = computeLbpHistogram(faceAMat);
-        Mat histB = computeLbpHistogram(faceBMat);
+        // 4) 计算 LBP 直方图（纯 Java 实现，避免 native memory bug）
+        double[] histArrA = computeLbpHistogramDouble(faceAMat);
+        double[] histArrB = computeLbpHistogramDouble(faceBMat);
 
-        // 5) 直方图对比（4 种方法：Correlation 取最相关）
-        double corr = compareHist(histA, histB, HISTCMP_CORREL);  // -1 ~ 1
-        double chi = compareHist(histA, histB, HISTCMP_CHISQR);   // 0 ~ inf
-        double intersect = compareHist(histA, histB, HISTCMP_INTERSECT);  // 0 ~ 1
+        // 5) 直方图对比
+        double corr = histogramCorrel(histArrA, histArrB);          // -1 ~ 1
+        double chi = histogramChiSquare(histArrA, histArrB);       // 0 ~ inf
+        double intersect = histogramIntersect(histArrA, histArrB); // 0 ~ 1
 
         // 6) 综合评分（Correlation 权重 0.7 + 直方图交集 0.3）
         double score01 = corr * 0.7 + intersect * 0.3;
@@ -186,50 +186,104 @@ public class LocalFaceMatchService {
 
     /** 裁剪人脸 + 灰度 + 缩放到 200x200 */
     private Mat extractFace(Mat img, Rect face) {
-        Mat faceImg = new Mat(img, face);
+        // 使用 ROI + copyTo 避免原生内存冲突
+        Mat faceImg = new Mat();
+        Mat roi = new Mat(img, face);
+        roi.copyTo(faceImg);
         Mat gray = new Mat();
         cvtColor(faceImg, gray, COLOR_BGR2GRAY);
         Mat resized = new Mat();
         resize(gray, resized, new Size(200, 200));
+        faceImg.release();
         return resized;
     }
 
-    /** 计算 LBP 直方图（256 维 + 空间分块 8x8 = 64 块 → 总 16384 维） */
-    private Mat computeLbpHistogram(Mat gray) {
-        Mat lbp = new Mat();
-        // 简化 LBP：对每个像素比较 8 邻域
-        for (int y = 1; y < gray.rows() - 1; y++) {
-            for (int x = 1; x < gray.cols() - 1; x++) {
-                byte center = (byte) gray.ptr(y, x).get(0);
-                int code = 0;
-                if ((gray.ptr(y - 1, x - 1).get(0) & 0xFF) >= (center & 0xFF)) code |= 1;
-                if ((gray.ptr(y - 1, x).get(0) & 0xFF) >= (center & 0xFF)) code |= 2;
-                if ((gray.ptr(y - 1, x + 1).get(0) & 0xFF) >= (center & 0xFF)) code |= 4;
-                if ((gray.ptr(y, x + 1).get(0) & 0xFF) >= (center & 0xFF)) code |= 8;
-                if ((gray.ptr(y + 1, x + 1).get(0) & 0xFF) >= (center & 0xFF)) code |= 16;
-                if ((gray.ptr(y + 1, x).get(0) & 0xFF) >= (center & 0xFF)) code |= 32;
-                if ((gray.ptr(y + 1, x - 1).get(0) & 0xFF) >= (center & 0xFF)) code |= 64;
-                if ((gray.ptr(y, x - 1).get(0) & 0xFF) >= (center & 0xFF)) code |= 128;
-                lbp.ptr(y, x).put((byte) code);
-            }
+    /** 计算 LBP 直方图（256 维，返回 double[]） */
+    private double[] computeLbpHistogramDouble(Mat gray) {
+        int rows = gray.rows();
+        int cols = gray.cols();
+        if (rows < 3 || cols < 3) {
+            return new double[256];
         }
-        // 用 256 桶手动统计直方图（避免 calcHist 版本兼容问题）
+
+        byte[] data = new byte[rows * cols];
+        gray.data().get(data);
+
         int[] hist = new int[256];
-        for (int y = 0; y < lbp.rows(); y++) {
-            for (int x = 0; x < lbp.cols(); x++) {
-                int v = lbp.ptr(y, x).get(0) & 0xFF;
-                hist[v]++;
+        for (int y = 1; y < rows - 1; y++) {
+            for (int x = 1; x < cols - 1; x++) {
+                int idx = y * cols + x;
+                int center = data[idx] & 0xFF;
+                int code = 0;
+                if ((data[(y - 1) * cols + (x - 1)] & 0xFF) >= center) code |= 1;
+                if ((data[(y - 1) * cols + x] & 0xFF) >= center) code |= 2;
+                if ((data[(y - 1) * cols + (x + 1)] & 0xFF) >= center) code |= 4;
+                if ((data[y * cols + (x + 1)] & 0xFF) >= center) code |= 8;
+                if ((data[(y + 1) * cols + (x + 1)] & 0xFF) >= center) code |= 16;
+                if ((data[(y + 1) * cols + x] & 0xFF) >= center) code |= 32;
+                if ((data[(y + 1) * cols + (x - 1)] & 0xFF) >= center) code |= 64;
+                if ((data[y * cols + (x - 1)] & 0xFF) >= center) code |= 128;
+                hist[code]++;
             }
         }
-        // 转 Mat (1x256, CV_32F)
+
+        double[] result = new double[256];
+        double sum = (rows - 2) * (cols - 2);
+        for (int i = 0; i < 256; i++) {
+            result[i] = sum > 0 ? hist[i] / sum : 0;
+        }
+        return result;
+    }
+
+    /** 兼容旧调用（返回 Mat） */
+    private Mat computeLbpHistogram(Mat gray) {
+        double[] arr = computeLbpHistogramDouble(gray);
         Mat histMat = new Mat(1, 256, org.bytedeco.opencv.global.opencv_core.CV_32F);
         org.bytedeco.javacpp.FloatPointer ptr = new org.bytedeco.javacpp.FloatPointer(256);
-        float sum = lbp.rows() * lbp.cols();
-        for (int i = 0; i < 256; i++) {
-            ptr.put(i, sum > 0 ? hist[i] / sum : 0);
-        }
+        for (int i = 0; i < 256; i++) ptr.put(i, (float) arr[i]);
         histMat.put(ptr);
         return histMat;
+    }
+
+    /** 直方图相关性（CORREL） -1 ~ 1 */
+    private static double histogramCorrel(double[] a, double[] b) {
+        if (a.length != b.length) return 0;
+        double meanA = 0, meanB = 0;
+        for (int i = 0; i < a.length; i++) { meanA += a[i]; meanB += b[i]; }
+        meanA /= a.length;
+        meanB /= b.length;
+        double num = 0, denA = 0, denB = 0;
+        for (int i = 0; i < a.length; i++) {
+            double da = a[i] - meanA;
+            double db = b[i] - meanB;
+            num += da * db;
+            denA += da * da;
+            denB += db * db;
+        }
+        if (denA == 0 || denB == 0) return 0;
+        return num / Math.sqrt(denA * denB);
+    }
+
+    /** 直方图交集（INTERSECT）0 ~ 1 */
+    private static double histogramIntersect(double[] a, double[] b) {
+        if (a.length != b.length) return 0;
+        double sum = 0;
+        for (int i = 0; i < a.length; i++) sum += Math.min(a[i], b[i]);
+        return sum;
+    }
+
+    /** 直方图卡方（CHISQR） */
+    private static double histogramChiSquare(double[] a, double[] b) {
+        if (a.length != b.length) return 0;
+        double sum = 0;
+        for (int i = 0; i < a.length; i++) {
+            double avg = (a[i] + b[i]) / 2.0;
+            if (avg > 0) {
+                sum += (a[i] - avg) * (a[i] - avg) / avg;
+                sum += (b[i] - avg) * (b[i] - avg) / avg;
+            }
+        }
+        return sum;
     }
 
     // ============== 工具 ==============
