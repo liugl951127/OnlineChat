@@ -52,11 +52,5 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
-        <!-- v2.2.46: Spring Cloud 2023.0.1 默认禁用 bootstrap.yml,
-             重新启用需要这个依赖. nacos discovery + nacos config 都需要 -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-bootstrap</artifactId>
-        </dependency>
     </dependencies>
 </project>

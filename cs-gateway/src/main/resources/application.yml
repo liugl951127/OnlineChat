@@ -10,52 +10,73 @@ spring:
     # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突
     web-application-type: reactive
-  # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
+  # v2.2.47: 使用 spring.config.import 方式从 nacos 拉远程配置
+  # (代替 bootstrap.yml 机制，更现代、更标准)
+  config:
+    import:
+      - "optional:nacos:cs-gateway.yaml"
+      - "optional:nacos:cs-gateway-${spring.profiles.active}.yaml"
+  # nacos 服务发现: 注册到 nacos
   cloud:
+    nacos:
+      discovery:
+        # 默认启用注册: 服务向 nacos 自动注册 (v2.2.47)
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        register-enabled: true
+        # 心跳 5s, 超时 15s 剔除
+        heartbeat-interval: 5000
+        heart-beat-timeout: 15000
+      # nacos config: 通过 spring.config.import 已配置
     gateway:
-      # v2.2.45: 路由硬编码 http://localhost: 直连，不受 nacos/环境变量影响
-      #  所有服务同时通过 @EnableDiscoveryClient + nacos-discovery 注册到 nacos
-      #  用于服务发现 / 健康监控 / OpenAPI 发现, 但 gateway 转发仍走直连
+      # v2.2.47: 路由用 lb://cs-auth (通过 nacos 服务发现负载均衡)
+      # 沙箱 nacos 不可达时，gateway 会 fallback 报错但仍能启动
       routes:
         - id: cs-auth
-          uri: http://localhost:9001
+          uri: lb://cs-auth
           predicates:
             - Path=/auth/**,/auth/actuator/**,/api/auth/**
         - id: cs-robot
-          uri: http://localhost:9002
+          uri: lb://cs-robot
           predicates:
             - Path=/robot/**
         - id: cs-im
-          uri: http://localhost:9003
+          uri: lb://cs-im
           predicates:
             - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
         - id: cs-trade
-          uri: http://localhost:9004
+          uri: lb://cs-trade
           predicates:
             - Path=/trade/**
         - id: cs-message
-          uri: http://localhost:9005
+          uri: lb://cs-message
           predicates:
             - Path=/message/**,/api/message/**
         # Actuator 健康检查路径转发（供 K8s liveness/readiness 探针 + Prometheus 抓取）
         - id: auth-health
-          uri: http://localhost:9001
+          uri: lb://cs-auth
           predicates:
             - Path=/actuator/auth/**
           filters:
             - StripPrefix=1
         - id: im-health
-          uri: http://localhost:9003
+          uri: lb://cs-im
           predicates:
             - Path=/actuator/im/**
           filters:
             - StripPrefix=1
         - id: message-health
-          uri: http://localhost:9005
+          uri: lb://cs-message
           predicates:
             - Path=/actuator/message/**,/message/actuator/**
           filters:
             - StripPrefix=1
+      # 启用 gateway 服务发现 locator (自动将 /serviceId/** 路由)
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
 
 cs:
   jwt:

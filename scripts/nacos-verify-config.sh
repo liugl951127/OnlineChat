@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # =====================================================
-# OnlineChat Nacos 配置加载验证 (v2.2.44)
+# OnlineChat Nacos + lb:// 路由验证 (v2.2.47)
 # =====================================================
 #
 # 不依赖 nacos 实际运行，仅验证：
-#   1. 所有服务都有 bootstrap.yml
-#   2. 所有服务都有 @EnableDiscoveryClient
-#   3. nacos 配置语法正确
-#   4. DiscoveryFallbackConfig 注入正常
-#
-# 用法:
-#   bash scripts/nacos-verify-config.sh
+#   1. spring.config.import 用 nacos:cs-xxx.yaml
+#   2. nacos-discovery + loadbalancer 依赖齐全
+#   3. bootstrap.yml 已删除 (用 import 替代)
+#   4. @EnableDiscoveryClient 注解
+#   5. routes 用 lb:// 模式
 # =====================================================
 
 set -e
@@ -22,133 +20,118 @@ ok()   { echo -e "  \033[32m✓\033[0m $1"; PASS=$((PASS+1)); }
 fail() { echo -e "  \033[31m✗\033[0m $1"; FAIL=$((FAIL+1)); }
 
 echo "============================================================"
-echo " v2.2.44 Nacos 服务发现配置验证"
+echo " v2.2.47 Nacos 注册 + lb:// 路由配置验证"
 echo "============================================================"
 
-# ========== 1. 检查所有服务的 bootstrap.yml ==========
+# ========== 1. spring.config.import (替代 bootstrap.yml) ==========
 echo
-echo "[1/6] 检查 bootstrap.yml"
+echo "[1/7] 检查 spring.config.import (Nacos 远程配置)"
 for svc in cs-gateway cs-auth cs-im cs-message; do
-    if [ -f "$svc/src/main/resources/bootstrap.yml" ]; then
-        SIZE=$(wc -c < "$svc/src/main/resources/bootstrap.yml")
-        ok "$svc bootstrap.yml ($SIZE bytes)"
-    else
-        fail "$svc bootstrap.yml 不存在"
-    fi
-done
-
-# ========== 2. 检查 @EnableDiscoveryClient 注解 ==========
-echo
-echo "[2/6] 检查 @EnableDiscoveryClient 注解"
-for svc in cs-gateway cs-auth cs-im cs-message; do
-    APP_FILE=$(find "$svc/src/main/java" -name "*Application.java" | head -1)
-    if [ -n "$APP_FILE" ]; then
-        if grep -q "@EnableDiscoveryClient" "$APP_FILE"; then
-            ok "$svc $(basename $APP_FILE) 有 @EnableDiscoveryClient"
+    YML="$svc/src/main/resources/application.yml"
+    if grep -q "spring.config.import" "$YML" 2>/dev/null; then
+        IMPORT_TARGET=$(grep -A 5 "config:" "$YML" | grep -E "optional:nacos:" | head -1 | tr -d ' ')
+        if [ -n "$IMPORT_TARGET" ]; then
+            ok "$svc spring.config.import: $IMPORT_TARGET"
         else
-            fail "$svc $(basename $APP_FILE) 缺 @EnableDiscoveryClient"
+            fail "$svc spring.config.import 缺 nacos:"
         fi
     else
-        fail "$svc 找不到 Application 类"
+        fail "$svc application.yml 缺 spring.config.import"
     fi
 done
 
-# ========== 3. 检查 nacos discovery 依赖 + bootstrap 启动器 ==========
+# ========== 2. bootstrap.yml 应已删除 ==========
 echo
-echo "[3/6] 检查 nacos-discovery 依赖 + spring-cloud-starter-bootstrap"
+echo "[2/7] 检查 bootstrap.yml (应已删除)"
+for svc in cs-gateway cs-auth cs-im cs-message; do
+    if [ -f "$svc/src/main/resources/bootstrap.yml" ]; then
+        fail "$svc bootstrap.yml 仍存在 (v2.2.47 已弃用)"
+    else
+        ok "$svc bootstrap.yml 已删除 (用 import 替代)"
+    fi
+done
+
+# ========== 3. nacos discovery 配置 ==========
+echo
+echo "[3/7] 检查 nacos discovery 配置"
+for svc in cs-gateway cs-auth cs-im cs-message; do
+    YML="$svc/src/main/resources/application.yml"
+    # YAML 嵌套需匹配具体字段名 nacos: + discovery:
+    if grep -E "^\s+nacos:|^\s+discovery:" "$YML" >/dev/null; then
+        ok "$svc application.yml 有 nacos.discovery"
+    else
+        fail "$svc application.yml 缺 nacos.discovery"
+    fi
+    # 启用注册
+    if grep -q "register-enabled" "$YML"; then
+        ok "$svc nacos.register-enabled 配置"
+    else
+        fail "$svc nacos.register-enabled 缺配置"
+    fi
+    # 心跳
+    if grep -q "heartbeat-interval" "$YML"; then
+        ok "$svc nacos.heartbeat-interval 配置"
+    else
+        fail "$svc nacos.heartbeat-interval 缺配置"
+    fi
+done
+
+# ========== 4. nacos + loadbalancer 依赖 ==========
+echo
+echo "[4/7] 检查 nacos-discovery + loadbalancer 依赖"
 for svc in cs-gateway cs-auth cs-im cs-message; do
     if grep -q "spring-cloud-starter-alibaba-nacos-discovery" "$svc/pom.xml"; then
         ok "$svc pom 有 nacos-discovery"
     else
         fail "$svc pom 缺 nacos-discovery"
     fi
-    # v2.2.46: Spring Cloud 2023.0.1 默认禁用 bootstrap.yml
-    # 必须加 spring-cloud-starter-bootstrap 依赖才能加载 bootstrap.yml
+    if grep -q "spring-cloud-starter-loadbalancer" "$svc/pom.xml"; then
+        ok "$svc pom 有 loadbalancer (lb:// 路由关键依赖)"
+    else
+        fail "$svc pom 缺 loadbalancer"
+    fi
+done
+
+# ========== 5. 不应再需要 bootstrap 启动器 ==========
+echo
+echo "[5/7] 检查 spring-cloud-starter-bootstrap (应已删除)"
+for svc in cs-gateway cs-auth cs-im cs-message; do
     if grep -q "spring-cloud-starter-bootstrap" "$svc/pom.xml"; then
-        ok "$svc pom 有 spring-cloud-starter-bootstrap (让 bootstrap.yml 生效)"
+        fail "$svc pom 仍含 spring-cloud-starter-bootstrap (v2.2.47 已用 import 替代)"
     else
-        fail "$svc pom 缺 spring-cloud-starter-bootstrap (Spring Cloud 2023.0.1 默认禁用 bootstrap.yml!)"
+        ok "$svc pom 已移除 bootstrap starter"
     fi
 done
 
-# ========== 4. 检查 nacos config 依赖 ==========
+# ========== 6. @EnableDiscoveryClient 注解 ==========
 echo
-echo "[4/6] 检查 nacos-config 依赖 (可选)"
+echo "[6/7] 检查 @EnableDiscoveryClient 注解"
 for svc in cs-gateway cs-auth cs-im cs-message; do
-    if grep -q "spring-cloud-starter-alibaba-nacos-config" "$svc/pom.xml"; then
-        ok "$svc pom 有 nacos-config"
+    APP_FILE=$(find "$svc/src/main/java" -name "*Application.java" | head -1)
+    if grep -q "@EnableDiscoveryClient" "$APP_FILE"; then
+        ok "$svc $(basename $APP_FILE) 有 @EnableDiscoveryClient"
     else
-        echo "  ℹ $svc pom 无 nacos-config (仅注册不拉配置)"
+        fail "$svc $(basename $APP_FILE) 缺 @EnableDiscoveryClient"
     fi
 done
 
-# ========== 5. 检查 DiscoveryFallbackConfig ==========
+# ========== 7. cs-gateway lb:// 路由 ==========
 echo
-echo "[5/6] 检查 DiscoveryFallbackConfig"
-if [ -f "cs-common/src/main/java/com/example/common/DiscoveryFallbackConfig.java" ]; then
-    ok "DiscoveryFallbackConfig.java 存在"
-else
-    fail "DiscoveryFallbackConfig.java 不存在"
-fi
-if [ -f "cs-common/src/test/java/com/example/common/DiscoveryFallbackConfigTest.java" ]; then
-    ok "DiscoveryFallbackConfigTest.java 存在"
-else
-    fail "DiscoveryFallbackConfigTest.java 不存在"
-fi
-
-# ========== 6. 检查 application.yml 重复配置 ==========
-echo
-echo "[6/6] 检查 application.yml 是否移除重复 nacos 配置"
-for svc in cs-gateway cs-auth cs-im cs-message; do
-    APP_YML="$svc/src/main/resources/application.yml"
-    if grep -E "nacos:|cloud:" "$APP_YML" | grep -v "nacos:" >/dev/null; then
-        # 只允许有 # nacos 注释，不应有 nacos: 配置
-        if grep -E "^  cloud:" "$APP_YML" | grep -A 10 "cloud:" | grep -E "nacos:" >/dev/null; then
-            fail "$svc application.yml 还有 nacos 重复配置"
-        else
-            ok "$svc application.yml 无 nacos 重复配置"
-        fi
-    else
-        ok "$svc application.yml 无 nacos 配置"
-    fi
-done
-
-# ========== 7. 检查 bootstrap.yml 配置正确 ==========
-echo
-echo "[7/6] 检查 bootstrap.yml 配置 (fail-fast 等)"
-for svc in cs-gateway cs-auth cs-im cs-message; do
-    YML="$svc/src/main/resources/bootstrap.yml"
-    if grep -q "fail-fast: false" "$YML"; then
-        ok "$svc bootstrap.yml fail-fast=false (沙箱友好)"
-    else
-        fail "$svc bootstrap.yml 缺 fail-fast=false"
-    fi
-    if grep -q "heartbeat-interval" "$YML"; then
-        ok "$svc bootstrap.yml 心跳配置正确"
-    else
-        fail "$svc bootstrap.yml 缺心跳配置"
-    fi
-done
-
-# ========== 8. 检查路由 lb:// 支持 ==========
-echo
-echo "[8/6] 检查 cs-gateway 路由硬编码 (v2.2.45 设计)"
+echo "[7/7] 检查 cs-gateway lb:// 路由"
 GATEWAY_YML="cs-gateway/src/main/resources/application.yml"
-HARDCODED_OK=true
-for port in 9001 9002 9003 9004 9005; do
-    if ! grep -q "uri: http://localhost:$port" "$GATEWAY_YML"; then
-        HARDCODED_OK=false
-        fail "cs-gateway routes 缺 http://localhost:$port 硬编码"
+for svc_name in cs-auth cs-robot cs-im cs-trade cs-message; do
+    if grep -q "uri: lb://$svc_name" "$GATEWAY_YML"; then
+        ok "cs-gateway 路由 → lb://$svc_name"
+    else
+        fail "cs-gateway 缺 lb://$svc_name 路由"
     fi
 done
-if [ "$HARDCODED_OK" = true ]; then
-    ok "cs-gateway routes 全部硬编码 http://localhost:{port} (不依赖 nacos lb)"
-fi
-# 确认没环境变量
-if grep -qE 'CS_(AUTH|IM|MESSAGE|ROBOT|TRADE)_URI' "$GATEWAY_YML"; then
-    fail "cs-gateway routes 还有 CS_*_URI 环境变量 (应硬编码)"
+
+# 检查 discovery locator
+if grep -q "discovery.locator" "$GATEWAY_YML"; then
+    ok "cs-gateway discovery.locator 启用 (自动 /serviceId/** 路由)"
 else
-    ok "cs-gateway routes 无环境变量 (稳定优先)"
+    echo "  ℹ cs-gateway discovery.locator 未启用 (用静态 routes)"
 fi
 
 # ========== 汇总 ==========
@@ -159,29 +142,30 @@ echo "============================================================"
 
 if [ $FAIL -eq 0 ]; then
     echo
-    echo "🎉 nacos 服务发现配置验证通过！"
+    echo "🎉 nacos + lb:// 路由配置验证通过！"
     echo
-    echo " 启用 nacos 部署流程:"
-    echo "  1. 启动 nacos standalone:"
+    echo " 启用流程:"
+    echo "  1. 启动 nacos:"
     echo "     docker run -d -p 8848:8848 -p 9848:9848 --name nacos nacos/nacos-server:v2.3.2"
-    echo "     OR"
-    echo "     bash /tmp/nacos/bin/startup.sh -m standalone"
     echo
-    echo "  2. 启动服务 (启用 nacos 发现):"
-    echo "     export NACOS_DISCOVERY_ENABLED=true"
-    echo "     export NACOS_CONFIG_ENABLED=true"
+    echo "  2. 启动 4 服务 (默认 NACOS_DISCOVERY_ENABLED=true 已开启):"
     echo "     export NACOS_ADDR=127.0.0.1:8848"
     echo "     bash scripts/deploy.sh"
     echo
-    echo "  3. gateway 切换 lb:// 服务发现:"
-    echo "     export CS_AUTH_URI=lb://cs-auth"
-    echo "     export CS_IM_URI=lb://cs-im"
-    echo "     export CS_MESSAGE_URI=lb://cs-message"
-    echo "     bash scripts/deploy.sh"
+    echo "  3. gateway 自动通过 lb://cs-auth 调用 nacos 注册的服务:"
+    echo "     路由: /auth/** → lb://cs-auth → nacos → cs-auth:9001"
     echo
     echo "  4. nacos 控制台验证:"
     echo "     http://127.0.0.1:8848/nacos (nacos/nacos)"
-    echo "     → 服务管理 → 服务列表 应看到 cs-gateway/cs-auth/cs-im/cs-message"
+    echo "     → 服务管理 → 服务列表 → 4 个服务都注册"
+    echo
+    echo "  5. nacos 远程配置 (可选):"
+    echo "     nacos 控制台 → 配置管理 → 配置列表 → 新建:"
+    echo "       Data ID: cs-gateway.yaml"
+    echo "       Group: DEFAULT_GROUP"
+    echo "       Format: YAML"
+    echo "       配置内容: spring.cloud.gateway.routes[0].uri=lb://cs-auth"
+    echo "     → 应用通过 spring.config.import 自动拉取"
 fi
 
 exit $FAIL

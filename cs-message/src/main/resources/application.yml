@@ -6,7 +6,21 @@ spring:
     name: cs-message
   profiles:
     active: prod
-  # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
+  # v2.2.47: 使用 spring.config.import 方式从 nacos 拉远程配置
+  config:
+    import:
+      - "optional:nacos:cs-message.yaml"
+      - "optional:nacos:cs-message-${spring.profiles.active}.yaml"
+  # nacos 服务发现: 注册到 nacos
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        register-enabled: true
+        heartbeat-interval: 5000
+        heart-beat-timeout: 15000
 
   # Redis（在线状态 + 离线消息）
   data:

@@ -10,7 +10,21 @@ spring:
     active: prod
   application:
     name: cs-auth
-  # nacos 配置在 bootstrap.yml 加载 (v2.2.44)
+  # v2.2.47: 使用 spring.config.import 方式从 nacos 拉远程配置
+  config:
+    import:
+      - "optional:nacos:cs-auth.yaml"
+      - "optional:nacos:cs-auth-${spring.profiles.active}.yaml"
+  # nacos 服务发现: 注册到 nacos
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        register-enabled: true
+        heartbeat-interval: 5000
+        heart-beat-timeout: 15000
 
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DB:cs_auth}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
