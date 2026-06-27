@@ -1,13 +1,17 @@
 package com.example.message.service;
 
 import com.example.common.kafka.ChatMessageEvent;
+import com.example.message.domain.OfflineMessage;
+import com.example.message.mapper.OfflineMessageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +34,7 @@ import java.util.List;
 public class OfflineMessageStore {
 
     private final StringRedisTemplate redis;
+    private final OfflineMessageMapper offlineMessageMapper;
 
     @Value("${cs.offline.max-messages:100}")
     private int maxMessages;
@@ -52,6 +57,29 @@ public class OfflineMessageStore {
         // 设置过期
         redis.expire(k, Duration.ofDays(ttlDays));
         log.debug("[Offline] stored for user={} msgId={}", userId, event.getMsgId());
+
+        // 异步持久化到 MySQL（冷备）
+        persistAsync(userId, event, json);
+    }
+
+    /** 异步持久化离线消息到 MySQL（Redis 重启后可恢复） */
+    @Async
+    public void persistAsync(String userId, ChatMessageEvent event, String json) {
+        try {
+            OfflineMessage m = new OfflineMessage();
+            m.setUserId(userId);
+            m.setMsgId(event.getMsgId());
+            m.setSessionId(event.getSessionId());
+            m.setSenderId(event.getFromId());
+            m.setMsgType(event.getMsgType() != null ? event.getMsgType() : "TEXT");
+            m.setPayload(json);
+            m.setDelivered(0);
+            m.setExpiresAt(LocalDateTime.now().plusDays(ttlDays));
+            offlineMessageMapper.insert(m);
+            log.debug("[Offline] persisted user={} msgId={} -> MySQL", userId, event.getMsgId());
+        } catch (Exception e) {
+            log.warn("[Offline] persist failed user={} msgId={}: {}", userId, event.getMsgId(), e.getMessage());
+        }
     }
 
     /** 批量推送（同一用户多条） */

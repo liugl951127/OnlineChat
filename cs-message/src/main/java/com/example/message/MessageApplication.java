@@ -5,10 +5,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.kafka.annotation.EnableKafka;
 
-@SpringBootApplication(scanBasePackages = {"com.example.message", "com.example.common"}, exclude = {
-    org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-    org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class
-})
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.scheduling.annotation.EnableAsync;
+
+@SpringBootApplication(scanBasePackages = {"com.example.message", "com.example.common"})
+@MapperScan("com.example.message.mapper")
+@EnableAsync
 @EnableDiscoveryClient
 @EnableKafka
 public class MessageApplication {

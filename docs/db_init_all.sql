@@ -14,6 +14,7 @@
 -- ============================================================
 CREATE DATABASE IF NOT EXISTS cs_auth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS cs_im CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS cs_message CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 1. cs-auth（1 张表）
@@ -509,6 +510,51 @@ CREATE TABLE voice_message (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='VoiceMessage';
 
 -- ============================================================
+-- 2.5 cs-message（消息持久化）
+-- ============================================================
+USE cs_message;
+
+-- OfflineMessage 离线消息表（持久化备份，Redis 主存）
+DROP TABLE IF EXISTS offline_message;
+CREATE TABLE offline_message (
+    id              BIGINT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id         VARCHAR(64)     NOT NULL                    COMMENT '接收人 customerId',
+    msg_id          VARCHAR(64)     NOT NULL                    COMMENT '消息唯一 ID（去重）',
+    session_id      VARCHAR(64)     NULL                        COMMENT '会话 ID',
+    sender_id       VARCHAR(64)     NULL                        COMMENT '发送人',
+    msg_type        VARCHAR(20)     NULL                        COMMENT 'TEXT/IMAGE/FILE/SYSTEM',
+    payload         TEXT            NULL                        COMMENT '消息 JSON',
+    delivered       TINYINT(1)      NOT NULL DEFAULT 0           COMMENT '是否已投递（用户上线已读）',
+    delivered_at    DATETIME        NULL,
+    expires_at      DATETIME        NULL                        COMMENT '过期时间',
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted         TINYINT(1)      NOT NULL DEFAULT 0,
+
+    UNIQUE KEY uk_msg_id (msg_id),
+    INDEX idx_user_undelivered (user_id, delivered, created_at),
+    INDEX idx_session (session_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='离线消息持久化';
+
+-- MessageDelivery 消息投递日志
+DROP TABLE IF EXISTS message_delivery;
+CREATE TABLE message_delivery (
+    id              BIGINT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    msg_id          VARCHAR(64)     NOT NULL,
+    user_id         VARCHAR(64)     NOT NULL,
+    channel         VARCHAR(20)     NOT NULL                    COMMENT 'WEBSOCKET/KAFKA/PUSH',
+    status          VARCHAR(20)     NOT NULL                    COMMENT 'SENT/ACK/FAILED',
+    retry_count     INT             NOT NULL DEFAULT 0,
+    error_message   VARCHAR(512)    NULL,
+    sent_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    acked_at        DATETIME        NULL,
+
+    INDEX idx_msg (msg_id),
+    INDEX idx_user (user_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息投递日志';
+
+-- ============================================================
 -- 3. 演示数据
 -- ============================================================
 USE cs_im;
@@ -521,4 +567,6 @@ INSERT INTO product (product_code, name, product_type, risk_level, min_amount, y
 -- ============================================================
 SELECT 'cs_auth' AS db, COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'cs_auth'
 UNION ALL
-SELECT 'cs_im', COUNT(*) FROM information_schema.tables WHERE table_schema = 'cs_im';
+SELECT 'cs_im', COUNT(*) FROM information_schema.tables WHERE table_schema = 'cs_im'
+UNION ALL
+SELECT 'cs_message', COUNT(*) FROM information_schema.tables WHERE table_schema = 'cs_message';
