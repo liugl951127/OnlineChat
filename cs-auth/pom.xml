@@ -57,6 +57,11 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
+        <!-- v2.2.49: nacos-config 远程配置 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
         <!-- v2.2.47: nacos-discovery 需要 loadbalancer -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

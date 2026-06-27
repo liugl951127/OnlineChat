@@ -1,0 +1,26 @@
+# cs-im nacos 远程配置示例 (v2.2.49)
+# Data ID: cs-im.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+
+cs:
+  im:
+    # WebSocket 心跳超时 (默认 30s)
+    heartbeat-timeout-ms: 60000
+    # 单聊最大未读消息数
+    max-unread: 500
+    # AI 助手 mock 模式
+    ai-mock: false
+
+# 金融合规化阈值 (v2.2.42)
+compliance:
+  aml:
+    # 单笔限额 (默认 5 万)
+    single-limit: 50000
+    # 单日累计限额 (默认 20 万)
+    daily-limit: 200000
+
+logging:
+  level:
+    com.example.im: INFO
+    com.example.im.kyc: WARN

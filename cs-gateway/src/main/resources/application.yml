@@ -95,7 +95,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway,gatewayroutes
+        include: health,info,gateway,gatewayroutes,refresh
   # v2.2.46: NacosDiagnosticsController 自定义 /actuator/nacos-diagnostics 端点
   endpoint:
     health:

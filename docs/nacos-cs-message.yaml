@@ -1,0 +1,21 @@
+# cs-message nacos 远程配置示例 (v2.2.49)
+# Data ID: cs-message.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+
+cs:
+  message:
+    # 离线消息最大保留数 (默认 100)
+    max-offline-messages: 200
+    # 离线消息 TTL (默认 7d = 604800s)
+    ttl-seconds: 1209600
+
+kafka:
+  consumer:
+    group-id: online-chat-message-v2
+    auto-offset-reset: earliest
+
+logging:
+  level:
+    com.example.message: INFO
+    org.springframework.kafka: WARN
