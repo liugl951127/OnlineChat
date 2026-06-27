@@ -10,12 +10,17 @@ spring:
     # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突
     web-application-type: reactive
-  # v2.2.47: 使用 spring.config.import 方式从 nacos 拉远程配置
-  # (代替 bootstrap.yml 机制，更现代、更标准)
+  # v2.2.50: spring.config.import 简写格式
+  # Spring Cloud Alibaba nacos-config 支持省略 .yaml 后缀
+  # 可用以下任一格式 (按推荐顺序):
+  #   1. "optional:nacos:cs-gateway"           - 自动匹配 .yaml/.yml/.properties
+  #   2. "optional:nacos:cs-gateway.yaml"     - 明确指定 yaml
+  #   3. "nacos:cs-gateway?group=DEFAULT_GROUP" - 完整格式
+  # 注: 不能省略 nacos: 前缀 (Spring Cloud 不识别)
   config:
     import:
-      - "optional:nacos:cs-gateway.yaml"
-      - "optional:nacos:cs-gateway-${spring.profiles.active}.yaml"
+      - "optional:nacos:cs-gateway"
+      - "optional:nacos:cs-gateway-${spring.profiles.active}"
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:

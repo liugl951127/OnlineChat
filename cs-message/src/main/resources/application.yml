@@ -6,11 +6,11 @@ spring:
     name: cs-message
   profiles:
     active: prod
-  # v2.2.47: 使用 spring.config.import 方式从 nacos 拉远程配置
+  # v2.2.50: spring.config.import 简写 (省略 .yaml 后缀)
   config:
     import:
-      - "optional:nacos:cs-message.yaml"
-      - "optional:nacos:cs-message-${spring.profiles.active}.yaml"
+      - "optional:nacos:cs-message"
+      - "optional:nacos:cs-message-${spring.profiles.active}"
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:
