@@ -46,7 +46,7 @@ public class AuthController {
     }
 
     @GetMapping("/wechat-oa/authorize")
-    public void oaAuthorize(@RequestParam(required = false) String redirectUri,
+    public void oaAuthorize(@RequestParam(name = "redirect_uri", required = false) String redirectUri,
                             @RequestParam(required = false) String state,
                             @RequestHeader(value = "Referer", required = false) String referer,
                             HttpServletRequest request,
@@ -70,7 +70,7 @@ public class AuthController {
      */
     @GetMapping("/wechat-oa/authorize-json")
     public ApiResponse<Map<String, String>> oaAuthorizeJson(
-            @RequestParam(required = false) String redirectUri,
+            @RequestParam(name = "redirect_uri", required = false) String redirectUri,
             @RequestParam(required = false) String state,
             @RequestHeader(value = "Referer", required = false) String referer,
             HttpServletRequest request) {
@@ -96,7 +96,7 @@ public class AuthController {
     }
 
     @GetMapping("/wechat-work/authorize")
-    public void workAuthorize(@RequestParam(required = false) String redirectUri,
+    public void workAuthorize(@RequestParam(name = "redirect_uri", required = false) String redirectUri,
                               @RequestParam(required = false) String state,
                               @RequestHeader(value = "Referer", required = false) String referer,
                               HttpServletRequest request,
@@ -109,7 +109,7 @@ public class AuthController {
 
     @GetMapping("/wechat-work/authorize-json")
     public ApiResponse<Map<String, String>> workAuthorizeJson(
-            @RequestParam(required = false) String redirectUri,
+            @RequestParam(name = "redirect_uri", required = false) String redirectUri,
             @RequestParam(required = false) String state,
             @RequestHeader(value = "Referer", required = false) String referer,
             HttpServletRequest request) {
@@ -135,7 +135,7 @@ public class AuthController {
 
     // ============ GitHub OAuth ============
     @GetMapping("/github/authorize")
-    public void githubAuthorize(@RequestParam(required = false) String redirectUri,
+    public void githubAuthorize(@RequestParam(name = "redirect_uri", required = false) String redirectUri,
                                  @RequestParam(required = false) String scope,
                                  @RequestHeader(value = "Referer", required = false) String referer,
                                  HttpServletRequest request,
@@ -147,7 +147,7 @@ public class AuthController {
 
     @GetMapping("/github/authorize-json")
     public ApiResponse<Map<String, String>> githubAuthorizeJson(
-            @RequestParam(required = false) String redirectUri,
+            @RequestParam(name = "redirect_uri", required = false) String redirectUri,
             @RequestParam(required = false) String scope,
             @RequestHeader(value = "Referer", required = false) String referer,
             HttpServletRequest request) {
@@ -175,7 +175,7 @@ public class AuthController {
 
     // ============ Google OAuth ============
     @GetMapping("/google/authorize")
-    public void googleAuthorize(@RequestParam(required = false) String redirectUri,
+    public void googleAuthorize(@RequestParam(name = "redirect_uri", required = false) String redirectUri,
                                  @RequestParam(required = false) String scope,
                                  @RequestHeader(value = "Referer", required = false) String referer,
                                  HttpServletRequest request,
@@ -187,7 +187,7 @@ public class AuthController {
 
     @GetMapping("/google/authorize-json")
     public ApiResponse<Map<String, String>> googleAuthorizeJson(
-            @RequestParam(required = false) String redirectUri,
+            @RequestParam(name = "redirect_uri", required = false) String redirectUri,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String redirect_uri,
             @RequestHeader(value = "Referer", required = false) String referer,

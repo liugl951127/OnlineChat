@@ -92,10 +92,11 @@ function handleLoginSuccess(data) {
 
 async function oauthLogin(provider) {
   // 开箱即用：axios 拿 JSON 形式的 redirect URL（避免 PC 端 302 弹窗被拦截）
-  // 1. 先调 authorize-json 拿到微信授权 URL
+  // 1. 先调 authorize-json 拿到微信授权 URL（带上当前域名作为 redirect_uri）
   // 2. window.location.href = url 跳转（这一步是必要的，PC 端会显示二维码）
+  const redirectUri = `${location.origin}/auth/${provider}/callback`
   try {
-    const { data } = await auth.oauthAuthorizeJson(provider)
+    const { data } = await auth.oauthAuthorizeJson(provider, redirectUri)
     if (data.code === 0 && data.data?.url) {
       // mock 模式下 url 是 redirect_uri?code=MOCK-xxx，需要前端路由处理
       // 真实模式下 url 是 open.weixin.qq.com/...，浏览器直接跳转
