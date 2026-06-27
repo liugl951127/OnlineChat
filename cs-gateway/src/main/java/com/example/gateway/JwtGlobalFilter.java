@@ -34,12 +34,43 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
     private String secret;
 
     private static final List<String> WHITE_LIST = List.of(
-            "/auth/wechat-work/callback",
+            // ============ 微信授权流程（点公众号/企微按钮 → 后端返 URL → 跳微信） ============
+            "/auth/wechat-oa/authorize",
+            "/auth/wechat-oa/authorize-json",
             "/auth/wechat-oa/callback",
+            "/auth/wechat-oa/callback-json",
+            "/auth/wx-oa/h5-entry",
+            "/auth/wx-mini/login",
+            "/auth/wechat-work/authorize",
+            "/auth/wechat-work/authorize-json",
+            "/auth/wechat-work/callback",
+            "/auth/wechat-work/callback-json",
+            // ============ GitHub / Google OAuth ============
+            "/auth/github/authorize",
+            "/auth/github/authorize-json",
+            "/auth/github/callback",
+            "/auth/github/callback-json",
+            "/auth/google/authorize",
+            "/auth/google/authorize-json",
+            "/auth/google/callback",
+            "/auth/google/callback-json",
+            // ============ 账号密码登录 ============
+            "/auth/login",
+            "/auth/login-phone",
+            "/auth/register",
+            "/auth/sms/send",
             "/auth/silent-login",
             "/auth/agent/login",
             "/auth/admin/login",
-            "/auth/refresh"
+            "/auth/refresh",
+            // ============ 验证码 / KYC / 验证 ============
+            "/auth/verify/phone",
+            "/auth/wechat-oa/js-sign",
+            "/auth/wechat-oa/customer-message",
+            "/auth/wechat-oa/template-send",
+            "/auth/wx-mini/subscribe-send",
+            // ============ 健康检查 ============
+            "/actuator"
     );
 
     @Override
@@ -50,8 +81,15 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
         // OPTIONS 放行（CORS）
         if ("OPTIONS".equalsIgnoreCase(req.getMethod().name())) return chain.filter(exchange);
 
-        // 白名单放行
-        for (String w : WHITE_LIST) if (path.startsWith(w)) return chain.filter(exchange);
+        // 健康检查（K8s 探针）一律放行
+        if (path.startsWith("/actuator")) return chain.filter(exchange);
+
+        // 白名单：精确匹配（开头完全一致）
+        for (String w : WHITE_LIST) {
+            if (path.equals(w) || path.startsWith(w + "/") || path.startsWith(w + "?")) {
+                return chain.filter(exchange);
+            }
+        }
 
         String token = extractToken(req);
         if (token == null) {
