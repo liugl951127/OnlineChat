@@ -98,6 +98,7 @@ public class OfflineMessageStore {
             List<Map<String, Object>> result = new ArrayList<>();
             for (int i = raw.size() - 1; i >= 0; i--) {
                 try {
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> msg = json.readValue(raw.get(i), Map.class);
                     result.add(msg);
                 } catch (Exception ignored) {}

@@ -116,6 +116,7 @@ public class WxMiniService {
         );
         try {
             String body = http.getForObject(url, String.class);
+            @SuppressWarnings("unchecked")
             Map<String, String> resp = json.readValue(body, Map.class);
             if (resp.containsKey("errcode") && !"0".equals(resp.get("errcode"))) {
                 throw new RuntimeException("微信登录失败: " + resp.get("errmsg"));
