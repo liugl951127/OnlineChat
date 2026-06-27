@@ -5,6 +5,9 @@ import { ElMessage } from 'element-plus'
 import { auth } from '@/api'
 import { useUserStore } from '@/store/user'
 import { maskMobile } from '@/utils'
+import { isMockEnabled } from '@/api/mock'
+
+const isMockMode = ref(isMockEnabled())
 
 const router = useRouter()
 const route = useRoute()
@@ -101,6 +104,27 @@ function oauthLogin(provider) {
         <h2>在线客服</h2>
         <p>Spring Cloud · Vue 3 · Element Plus</p>
       </div>
+
+      <!-- Mock 模式提示横幅 -->
+      <el-alert
+        v-if="isMockMode"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      >
+        <template #title>
+          <strong>前端 Mock 模式</strong>（不依赖后端）
+        </template>
+        <div class="mock-tips">
+          <div>演示账号：</div>
+          <div>· <el-tag size="small">demo / demo123</el-tag> 客户</div>
+          <div>· <el-tag size="small">customer001 / pass123</el-tag> 客户</div>
+          <div>· <el-tag size="small">agent001 / agent123</el-tag> 坐席</div>
+          <div>· <el-tag size="small">admin / admin123</el-tag> 管理员</div>
+          <div class="mock-tips-tip">手机号登录验证码：<el-tag size="small" type="success">123456</el-tag></div>
+        </div>
+      </el-alert>
 
       <el-tabs v-model="activeTab" v-if="!registerMode">
         <el-tab-pane label="账号密码" name="password">
@@ -257,5 +281,16 @@ function oauthLogin(provider) {
     justify-content: center;
     gap: 4px;
   }
+}
+
+.mock-tips {
+  font-size: 13px;
+  line-height: 1.8;
+  margin-top: 4px;
+}
+.mock-tips-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #909399;
 }
 </style>

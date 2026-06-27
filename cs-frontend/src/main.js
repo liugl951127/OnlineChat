@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
 import * as ElIcons from '@element-plus/icons-vue'
+import { initMock } from './api/mock'
 
 const app = createApp(App)
 app.use(createPinia())
@@ -23,3 +24,6 @@ for (const name of usedIcons) {
 }
 
 app.mount('#app')
+
+// 初始化 Mock（仅 auth 模块：账号密码/手机号/OAuth）使用前端独立 login
+initMock()

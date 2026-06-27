@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import router from '@/router'
+import { mockAuth, isMockEnabled } from './mock'
 
 // ============ 防 XSS：通用清理（DOMPurify） ============
 import DOMPurify from 'dompurify'
@@ -15,13 +16,49 @@ export function safeText(html) {
 }
 
 const service = axios.create({
-  baseURL: '/api',
+  baseURL: '',           // 直接调用 Gateway 路径（不含 /api 前缀，与 Gateway 路由一致）
   timeout: 15000,
   withCredentials: false
 })
 
 // ============ Request 拦截：Token + CSRF + 时间戳防重放 ============
-service.interceptors.request.use(config => {
+service.interceptors.request.use(async config => {
+  // === Mock 拦截（仅 auth 模块） ===
+  if (isMockEnabled() && config.url && config.url.startsWith('/auth/')) {
+    const url = config.url
+    const method = (config.method || 'get').toLowerCase()
+    const body = typeof config.data === 'string' ? JSON.parse(config.data || '{}') : (config.data || {})
+
+    try {
+      let result
+      if (url === '/auth/login' && method === 'post') result = await mockAuth.loginByPassword(body.username, body.password)
+      else if (url === '/auth/login-phone' && method === 'post') result = await mockAuth.loginByPhone(body.phone, body.code)
+      else if (url === '/auth/sms-code' && method === 'post') result = await mockAuth.sendSms(body.phone)
+      else if (url === '/auth/register' && method === 'post') result = await mockAuth.register(body)
+      else if (url === '/auth/me' && method === 'get') result = await mockAuth.me()
+      else if (url === '/auth/logout' && method === 'post') result = await mockAuth.logout()
+      else if (url === '/auth/silent' && method === 'get') result = await mockAuth.silent(config.params?.token)
+      else if (url.endsWith('/authorize')) {
+        return mockAuth.oauthAuthorize(url.split('/')[2], config.params?.redirect_uri)
+      }
+
+      if (result) {
+        // 短路：直接返回模拟响应，不走网络
+        config.adapter = () => Promise.resolve({
+          data: result.data,
+          status: result.data.code === 0 ? 200 : 400,
+          statusText: result.data.code === 0 ? 'OK' : 'Bad Request',
+          headers: {},
+          config,
+          request: {}
+        })
+        return config
+      }
+    } catch (e) {
+      config.adapter = () => Promise.reject(e)
+      return config
+    }
+  }
   const user = useUserStore()
   if (user.token) config.headers['Authorization'] = `Bearer ${user.token}`
 
