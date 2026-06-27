@@ -24,7 +24,12 @@
       <div v-if="userInfo" class="user-info">
         <div><strong>昵称：</strong>{{ userInfo.nickname }}</div>
         <div><strong>角色：</strong>{{ userInfo.role }}</div>
-        <div><strong>OpenID：</strong>{{ userInfo.openid }}</div>
+        <div><strong>客户ID：</strong>{{ userInfo.customerId }}</div>
+        <div v-if="userInfo.openid"><strong>OpenID：</strong>{{ userInfo.openid }}</div>
+        <div v-if="userInfo.unionid"><strong>UnionID：</strong>{{ userInfo.unionid }}</div>
+        <div v-if="userInfo.phoneMasked"><strong>手机：</strong>{{ userInfo.phoneMasked }}</div>
+        <div v-if="userInfo.provider"><strong>渠道：</strong>{{ userInfo.provider }}</div>
+        <div v-if="userInfo.avatar"><strong>头像：</strong><img :src="userInfo.avatar" class="avatar" /></div>
       </div>
 
       <div class="actions">
@@ -109,7 +114,7 @@ function labelOf(p) {
 
 function handleDirectToken(token) {
   user.setToken(token, { id: 'oauth-user', name: '微信用户', role: 'CUSTOMER', channel: 'OA' })
-  success('微信登录成功！', { nickname: '微信用户', role: 'CUSTOMER', openid: 'oauth-direct' })
+  success('微信登录成功！', { nickname: '微信用户', role: 'CUSTOMER', customerId: 'oauth-direct' })
 }
 
 function handleToken(data, isMock = false) {
@@ -117,14 +122,32 @@ function handleToken(data, isMock = false) {
     id: data.customerId || data.userId,
     name: data.nickname || data.displayName,
     role: data.role || 'CUSTOMER',
-    channel: data.channel || 'OA'
+    channel: data.channel || 'OA',
+    avatar: data.avatar
   })
+  // 保存完整用户信息到 localStorage，供其他页面读取
+  localStorage.setItem('cs_user_info', JSON.stringify({
+    customerId: data.customerId,
+    nickname: data.nickname,
+    avatar: data.avatar,
+    phoneMasked: data.phoneMasked,
+    openid: data.openid,
+    unionid: data.unionid,
+    provider: data.provider,
+    role: data.role,
+    channel: data.channel
+  }))
   if (data.csrf) localStorage.setItem('cs_csrf', data.csrf)
   if (isMock) mock.value = true
   success(`登录成功${isMock ? '（前端 Mock 回退）' : ''}`, {
     nickname: data.nickname || data.displayName || '微信用户',
     role: data.role || 'CUSTOMER',
-    openid: data.openid || data.customerId || 'unknown'
+    customerId: data.customerId,
+    openid: data.openid,
+    unionid: data.unionid,
+    phoneMasked: data.phoneMasked,
+    provider: data.provider,
+    avatar: data.avatar
   })
 }
 
@@ -197,6 +220,12 @@ h2 { margin: 0 0 16px; font-weight: 600; }
   text-align: left;
   font-size: 13px;
   line-height: 1.8;
+}
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-left: 4px;
 }
 .actions {
   margin-top: 20px;
