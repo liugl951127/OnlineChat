@@ -72,26 +72,26 @@ public class LocalIdCardOcrService {
     private static final Pattern ID_CARD_PATTERN = Pattern.compile(
         "[1-9]\\d{5}(?:18|19|20)\\d{2}(?:0\\d|1[0-2])(?:[0-2]\\d|3[01])\\d{3}[\\dXx]");
 
-    /** 中文姓名（2-4 个汉字） */
-    private static final Pattern NAME_PATTERN = Pattern.compile("姓名[\\s:：]+([\\u4e00-\\u9fa5]{2,4})");
+    /** 中文姓名（2-4 个汉字，允许中间空格；贪婪匹配在遇到"性"/"出生"等关键字时停止） */
+    private static final Pattern NAME_PATTERN = Pattern.compile("姓\\s*名[\\s:：]+([\\u4e00-\\u9fa5\\s]{2,4}?)(?=\\s*(性\\s*别|出生|$))");
 
-    /** 性别（男/女） */
-    private static final Pattern GENDER_PATTERN = Pattern.compile("性别[\\s:：]+([男女])");
+    /** 性别（男/女，允许中间空格） */
+    private static final Pattern GENDER_PATTERN = Pattern.compile("性\\s*别[\\s:：]+([男女])");
 
-    /** 民族（XX族） */
-    private static final Pattern NATION_PATTERN = Pattern.compile("民族[\\s:：]+([\\u4e00-\\u9fa5]+族)");
+    /** 民族（XX族，允许中间空格） */
+    private static final Pattern NATION_PATTERN = Pattern.compile("民\\s*族[\\s:：]+([\\u4e00-\\u9fa5]+\\s*族)");
 
     /** 出生 YYYYMMDD */
     private static final Pattern BIRTH_PATTERN = Pattern.compile(
-        "出生[\\s:：]+(\\d{4})[\\s年.]+(\\d{1,2})[\\s月.]+(\\d{1,2})");
+        "出\\s*生[\\s:：]+(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})");
 
-    /** 身份证号（带"公民身份号码"前缀） */
+    /** 身份证号（带"公民身份号码"前缀，允许中间空格） */
     private static final Pattern ID_CARD_LABEL_PATTERN = Pattern.compile(
-        "公民身份号码[\\s:：]*([1-9]\\d{5}\\d{8}\\d{3}[\\dXx])");
+        "公\\s*民\\s*身\\s*份\\s*号\\s*码[\\s:：]*([1-9]\\d{5}\\s?\\d{8}\\s?\\d{3}[\\dXx])");
 
     /** 地址（"住址"开头，多行） */
     private static final Pattern ADDRESS_PATTERN = Pattern.compile(
-        "住址[\\s:：]+([^\\n]+(?:\\n[^\\n]+){0,3})");
+        "住\\s*址[\\s:：]+([^\\n]+(?:\\n[^\\n]+){0,3})");
 
     @PostConstruct
     public void init() {
@@ -101,11 +101,10 @@ public class LocalIdCardOcrService {
         }
         tesseract = new Tesseract();
         tesseract.setDatapath(tessDataPath);
-        // 中文简体 + 英文
-        tesseract.setLanguage("chi_sim+eng");
-        tesseract.setOcrEngineMode(1);  // LSTM
-        tesseract.setPageSegMode(6);     // 假设统一的文本块
-        log.info("[LocalOCR] 初始化完成 tessDataPath={}", tessDataPath);
+        tesseract.setLanguage("chi_sim");
+        // 不设 oem / psm，使用 Tesseract 默认值（LSTM auto + 3）
+        // 设为 1/6 在 tess4j 5.13 + Tesseract 5.x 有兼容问题（输出 ?）
+        log.info("[LocalOCR] 初始化完成 tessDataPath={} language=chi_sim", tessDataPath);
     }
 
     /**
@@ -128,7 +127,7 @@ public class LocalIdCardOcrService {
 
         // 1) 解码 + 预处理
         Mat frontMat = decodeBase64ToMat(frontImage);
-        Mat processed = preprocessForOcr(frontMat);
+        BufferedImage processed = preprocessForOcr(frontMat);
 
         // 2) Tesseract 识别
         String frontText = ocrMat(processed);
@@ -140,7 +139,7 @@ public class LocalIdCardOcrService {
         Map<String, Object> back = new HashMap<>();
         if (!isBlank(backImage)) {
             Mat backMat = decodeBase64ToMat(backImage);
-            Mat backProcessed = preprocessForOcr(backMat);
+            BufferedImage backProcessed = preprocessForOcr(backMat);
             String backText = ocrMat(backProcessed);
             back = parseBackFields(backText);
         }
@@ -179,8 +178,8 @@ public class LocalIdCardOcrService {
         return raw;
     }
 
-    /** 预处理：灰度 → 自适应二值化 → 去噪 */
-    private Mat preprocessForOcr(Mat src) {
+    /** 预处理：灰度 → 自适应二值化 → 去噪，返回 BufferedImage */
+    private BufferedImage preprocessForOcr(Mat src) {
         Mat gray = new Mat();
         cvtColor(src, gray, COLOR_BGR2GRAY);
 
@@ -193,21 +192,29 @@ public class LocalIdCardOcrService {
         Mat denoised = new Mat();
         medianBlur(binary, denoised, 3);
 
-        // 缩放到合适大小（身份证宽度 ~ 800px 最适合 OCR）
-        if (denoised.cols() < 800) {
-            double scale = 800.0 / denoised.cols();
-            Mat resized = new Mat();
+        // 缩放到合适大小
+        Mat resized;
+        if (denoised.cols() < 600) {
+            double scale = 600.0 / denoised.cols();
+            resized = new Mat();
             resize(denoised, resized, new Size(0, 0), scale, scale, INTER_CUBIC);
-            return resized;
+        } else if (denoised.cols() > 2000) {
+            double scale = 1500.0 / denoised.cols();
+            resized = new Mat();
+            resize(denoised, resized, new Size(0, 0), scale, scale, INTER_AREA);
+        } else {
+            resized = denoised;
         }
-        return denoised;
+
+        return matToBufferedImage(resized);
     }
 
-    /** OCR 识别 Mat */
-    private String ocrMat(Mat mat) {
+    /** OCR 识别 BufferedImage */
+    private String ocrMat(BufferedImage img) {
         try {
-            BufferedImage img = matToBufferedImage(mat);
-            return tesseract.doOCR(img);
+            String result = tesseract.doOCR(img);
+            log.info("[LocalOCR] Tesseract 原始输出（{} 字符）：\n{}", result.length(), result);
+            return result;
         } catch (Exception e) {
             log.error("[LocalOCR] Tesseract 识别失败", e);
             throw new ApiException(500, "本地 OCR 识别失败：" + e.getMessage());
@@ -224,23 +231,33 @@ public class LocalIdCardOcrService {
 
     // ============== 字段解析 ==============
 
+    /** 解析身份证正面（公开便于测试） */
+    public static Map<String, Object> parseFrontFieldsPublic(String text) {
+        return new LocalIdCardOcrService().parseFrontFields(text);
+    }
+
+    /** 解析身份证反面（公开便于测试） */
+    public static Map<String, Object> parseBackFieldsPublic(String text) {
+        return new LocalIdCardOcrService().parseBackFields(text);
+    }
+
     /** 解析身份证正面 */
     private Map<String, Object> parseFrontFields(String text) {
         Map<String, Object> r = new HashMap<>();
 
         Matcher m;
 
-        // 姓名
+        // 姓名（去除空格）
         m = NAME_PATTERN.matcher(text);
-        if (m.find()) r.put("name", m.group(1));
+        if (m.find()) r.put("name", m.group(1).replaceAll("\\s+", ""));
 
         // 性别
         m = GENDER_PATTERN.matcher(text);
         if (m.find()) r.put("gender", m.group(1));
 
-        // 民族
+        // 民族（去除空格）
         m = NATION_PATTERN.matcher(text);
-        if (m.find()) r.put("nation", m.group(1));
+        if (m.find()) r.put("nation", m.group(1).replaceAll("\\s+", ""));
 
         // 出生
         m = BIRTH_PATTERN.matcher(text);
@@ -254,16 +271,16 @@ public class LocalIdCardOcrService {
         // 身份证号（优先从标签匹配，fallback 全文）
         m = ID_CARD_LABEL_PATTERN.matcher(text);
         if (m.find()) {
-            r.put("idCardNo", m.group(1).toUpperCase());
+            r.put("idCardNo", m.group(1).replaceAll("\\s+", "").toUpperCase());
         } else {
             m = ID_CARD_PATTERN.matcher(text);
             if (m.find()) r.put("idCardNo", m.group().toUpperCase());
         }
 
-        // 地址
+        // 地址（去除所有空格，连成一句）
         m = ADDRESS_PATTERN.matcher(text);
         if (m.find()) {
-            r.put("address", m.group(1).replaceAll("\\s+", " ").trim());
+            r.put("address", m.group(1).replaceAll("\\s+", "").trim());
         }
 
         return r;
@@ -272,14 +289,14 @@ public class LocalIdCardOcrService {
     /** 解析身份证反面 */
     private Map<String, Object> parseBackFields(String text) {
         Map<String, Object> r = new HashMap<>();
-        Pattern issue = Pattern.compile("签发机关[\\s:：]+([^\\n]+)");
-        Pattern valid = Pattern.compile("有效期限[\\s:：]+([^\\n]+)");
+        Pattern issue = Pattern.compile("签\\s*发\\s*机\\s*关[\\s:：_]+(.+)");
+        Pattern valid = Pattern.compile("有\\s*效\\s*期\\s*限[\\s:：_]+(.+)");
 
         Matcher m1 = issue.matcher(text);
-        if (m1.find()) r.put("issueAuthority", m1.group(1).trim());
+        if (m1.find()) r.put("issueAuthority", m1.group(1).replaceAll("\\s+", "").trim());
 
         Matcher m2 = valid.matcher(text);
-        if (m2.find()) r.put("validPeriod", m2.group(1).trim());
+        if (m2.find()) r.put("validPeriod", m2.group(1).replaceAll("\\s+", " ").trim());
 
         return r;
     }
