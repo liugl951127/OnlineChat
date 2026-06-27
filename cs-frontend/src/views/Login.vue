@@ -31,6 +31,7 @@ const sendCooldown = ref(0)
 
 const passwordForm = reactive({ username: '', password: '' })
 const phoneForm = reactive({ phone: '', code: '' })
+const agentForm = reactive({ username: '', password: '' })  // v2.2.40
 const registerForm = reactive({ username: '', password: '', confirm: '' })
 const registerMode = ref(false)
 
@@ -94,6 +95,20 @@ async function register() {
   }
 }
 
+// v2.2.40: 坐席账号密码登录
+async function loginByAgent() {
+  if (!agentForm.username || !agentForm.password) {
+    return ElMessage.warning('请输入账号和密码')
+  }
+  submitting.value = true
+  try {
+    const { data } = await auth.agentLogin(agentForm.username, agentForm.password)
+    handleLoginSuccess(data)
+  } finally {
+    submitting.value = false
+  }
+}
+
 async function sendCode() {
   if (!/^1[3-9]\d{9}$/.test(phoneForm.phone)) return ElMessage.warning('手机号格式错误')
   if (sendCooldown.value > 0) return
@@ -112,7 +127,15 @@ function handleLoginSuccess(data) {
   if (data.csrf) localStorage.setItem('cs_csrf', data.csrf)
   const next = route.query.next
   const map = { customer: 'customer', agent: 'agent', admin: 'admin' }
-  router.push({ name: map[next] || 'customer' })
+  // v2.2.40: 根据 role 智能跳转 (没有 ?next 时)
+  let target = map[next]
+  if (!target) {
+    const role = data.role || 'CUSTOMER'
+    if (role === 'ADMIN') target = 'admin'
+    else if (role === 'AGENT') target = 'agent'
+    else target = 'customer'
+  }
+  router.push({ name: target })
 }
 
 async function oauthLogin(provider) {
@@ -176,6 +199,23 @@ async function oauthLogin(provider) {
       </el-alert>
 
       <el-tabs v-model="activeTab" v-if="!registerMode">
+        <!-- v2.2.40: 坐席登录入口 -->
+        <el-tab-pane label="坐席/管理员" name="agent" v-if="deviceType === 'PC'">
+          <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px">
+            <template #title>
+              <small>坐席账号是 customerId 以 <strong>a-</strong> 开头的账号，管理员 <strong>admin / admin123</strong></small>
+            </template>
+          </el-alert>
+          <el-form @submit.prevent="loginByAgent" label-position="top">
+            <el-form-item label="坐席账号">
+              <el-input v-model="agentForm.username" placeholder="坐席账号（不含 a- 前缀）" maxlength="64" />
+            </el-form-item>
+            <el-form-item label="密码">
+              <el-input v-model="agentForm.password" type="password" placeholder="密码" show-password maxlength="64" @keyup.enter="loginByAgent" />
+            </el-form-item>
+            <el-button type="primary" :loading="submitting" class="full" @click="loginByAgent">坐席登录</el-button>
+          </el-form>
+        </el-tab-pane>
         <el-tab-pane label="账号密码" name="password">
           <el-form @submit.prevent="loginByPassword" label-position="top">
             <el-form-item label="账号">

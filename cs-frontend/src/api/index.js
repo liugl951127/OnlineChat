@@ -7,6 +7,8 @@ export const auth = {
   sendSms: phone => request.post('/auth/sms-code', { phone }),
   register: data => request.post('/auth/register', data),
   adminLogin: data => request.post('/auth/admin/login', data),
+  /** v2.2.40: 坐席账号密码登录 */
+  agentLogin: (username, password) => request.post('/auth/agent/login', { username, password }),
   silent: data => request.post('/auth/silent', data),
   me: () => request.get('/auth/me'),
   logout: () => request.post('/auth/logout'),

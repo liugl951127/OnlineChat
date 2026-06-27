@@ -6,8 +6,11 @@ import com.example.auth.service.WechatJsSignService;
 import com.example.auth.service.WechatPushService;
 import com.example.auth.service.WxMiniService;
 import com.example.auth.service.WxMiniSubscribeService;
+import com.example.auth.domain.WechatUser;
+import com.example.auth.repo.WechatUserRepo;
 import com.example.common.ApiException;
 import com.example.common.ApiResponse;
+import com.example.common.CryptoUtils;
 import com.example.common.security.CsrfTokenIssuer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,6 +41,7 @@ public class AuthController {
     private final WxMiniSubscribeService miniSubscribeService;
     private final TokenBlacklistService blacklistService;
     private final com.example.common.JwtUtils jwtUtils;
+    private final WechatUserRepo userRepo;
 
     // ============ 客户：静默 / OAuth ============
     @PostMapping("/silent-login")
@@ -268,6 +272,42 @@ public class AuthController {
         Map<String, Object> body = authService.adminLogin(req.getUsername(), req.getPassword());
         body.put("csrf", csrfIssuer.issue(resp));
         return ApiResponse.ok(body);
+    }
+
+    /**
+     * v2.2.40: 坐席账号密码登录
+     *
+     * <pre>
+     *   POST /auth/agent/login
+     *   { username, password }
+     *   ← { token, customerId, role: 'AGENT', channel: 'AGENT_PWD', ... }
+     * </pre>
+     */
+    @PostMapping("/agent/login")
+    public ApiResponse<Map<String, Object>> agentLogin(@RequestBody LoginReq req,
+                                                         HttpServletRequest http,
+                                                         HttpServletResponse resp) {
+        Map<String, Object> body = authService.agentLoginByPassword(req.getUsername(), req.getPassword(),
+                clientIp(http));
+        body.put("csrf", csrfIssuer.issue(resp));
+        return ApiResponse.ok(body);
+    }
+
+    /** v2.2.40: 重置坐席密码 (管理员操作) */
+    @PostMapping("/admin/reset-agent-password")
+    public ApiResponse<Map<String, Object>> resetAgentPassword(@RequestBody ResetAgentPwdReq req) {
+        // 仅允许重置 customerId 以 a- 开头的坐席账号
+        if (req.getCustomerId() == null || !req.getCustomerId().startsWith("a-")) {
+            throw new ApiException(400, "customerId 必须是坐席账号（a- 前缀）");
+        }
+        WechatUser u = userRepo.findByCustomerId(req.getCustomerId())
+                .orElseThrow(() -> new ApiException(404, "坐席不存在"));
+        u.setPasswordHash(CryptoUtils.hashPassword(req.getNewPassword()));
+        userRepo.save(u);
+        // 让该坐席旧 token 全部失效
+        blacklistService.bumpUserVersion(u.getCustomerId());
+        log.info("[Agent] reset password for {}", req.getCustomerId());
+        return ApiResponse.ok(Map.of("msg", "password reset", "customerId", u.getCustomerId()));
     }
 
     @PostMapping("/refresh")
@@ -551,5 +591,11 @@ public class AuthController {
         private String templateId;
         private Map<String, Object> data;
         private String page;
+    }
+
+    /** v2.2.40: 重置坐席密码 */
+    @Data public static class ResetAgentPwdReq {
+        private String customerId;
+        private String newPassword;
     }
 }

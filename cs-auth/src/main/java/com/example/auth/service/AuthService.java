@@ -90,7 +90,47 @@ public class AuthService {
                     .phoneMasked(SensitiveUtils.maskMobile(info.getOrDefault("mobile", ""))).build());
         });
         Map<String, Object> resp = tokenResponse(u, "WORK");
-        resp.put("role", "AGENT");
+        // v2.2.40: 根据 wechat_user.role 决定 AGENT / ADMIN（默认 AGENT）
+        String role = u.getRole() != null ? u.getRole() : "AGENT";
+        resp.put("role", role);
+        resp.put("skills", "ALL");
+        return resp;
+    }
+
+    /** v2.2.40: 坐席账号密码登录（与客户分开渠道） */
+    @Transactional
+    public Map<String, Object> agentLoginByPassword(String username, String password, String ip) {
+        if (!loginRateLimiter.tryAcquire("agent-pwd:" + username + ":" + (ip == null ? "" : ip))) {
+            throw new ApiException(429, "尝试次数过多，请 1 分钟后再试");
+        }
+        if (username == null || password == null) {
+            throw new ApiException(400, "账号/密码必填");
+        }
+        WechatUser u = userRepo.findByUsername(username)
+                .orElseThrow(() -> {
+                    recordFail(null, username);
+                    return new ApiException(401, "坐席账号或密码错误");
+                });
+
+        if (u.getLockUntil() != null && u.getLockUntil().isAfter(LocalDateTime.now())) {
+            throw new ApiException(423, "账号已被锁定至 " + u.getLockUntil());
+        }
+        if (!CryptoUtils.verifyPassword(password, u.getPasswordHash())) {
+            recordFail(u, username);
+            throw new ApiException(401, "坐席账号或密码错误");
+        }
+        // 必须 customerId 开头是 a- 或者是 ADMIN/AGENT 角色
+        if (u.getCustomerId() != null && !u.getCustomerId().startsWith("a-")
+                && !"AGENT".equals(u.getRole()) && !"ADMIN".equals(u.getRole())) {
+            throw new ApiException(403, "该账号不是坐席账号");
+        }
+
+        // 成功：清零失败计数
+        u.setLoginFailCount(0);
+        u.setLockUntil(null);
+        userRepo.save(u);
+        Map<String, Object> resp = tokenResponse(u, "AGENT_PWD");
+        resp.put("role", u.getRole() != null ? u.getRole() : "AGENT");
         resp.put("skills", "ALL");
         return resp;
     }
