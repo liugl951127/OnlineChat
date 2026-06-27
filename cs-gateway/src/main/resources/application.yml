@@ -15,7 +15,7 @@ spring:
         - id: cs-auth
           uri: lb://cs-auth
           predicates:
-            - Path=/auth/**,/auth/actuator/**
+            - Path=/auth/**,/auth/actuator/**,/api/auth/**
         - id: cs-robot
           uri: lb://cs-robot
           predicates:
@@ -23,7 +23,7 @@ spring:
         - id: cs-im
           uri: lb://cs-im
           predicates:
-            - Path=/im/**,/ws/**
+            - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
         - id: cs-trade
           uri: lb://cs-trade
           predicates:

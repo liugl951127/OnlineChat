@@ -460,13 +460,13 @@ function onKycCompleted() {
               <el-image :src="m.url" :preview-src-list="[m.url]" fit="cover" style="max-width: 200px; border-radius: 8px;" />
             </div>
             <div v-else-if="m.type === 'file'" class="msg-bubble" :class="m.mine ? 'msg-mine' : 'msg-other'">
-              <el-link :href="m.url" :underline="false" target="_blank" rel="noopener noreferrer">
+              <el-link :href="m.url" :underline="never" target="_blank" rel="noopener noreferrer">
                 <el-icon><Document /></el-icon> {{ m.name || '文件' }}
               </el-link>
             </div>
             <div v-if="m.reaction" class="reaction">👍 {{ m.reaction }}</div>
             <div class="actions" v-if="m.mine && !m.recalled && Date.now() - m.time < 2 * 60 * 1000">
-              <el-link type="primary" :underline="false" size="small" @click="recall(m)">撤回</el-link>
+              <el-link type="primary" :underline="never" size="small" @click="recall(m)">撤回</el-link>
             </div>
           </template>
           <div class="time">{{ formatTime(m.time) }}</div>
