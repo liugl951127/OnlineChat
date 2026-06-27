@@ -31,10 +31,22 @@ public class JwtUtils {
      * @param ttlMs  Token 有效期（毫秒）
      */
     public JwtUtils(String secret, long ttlMs) {
-        // 从字符串生成 HMAC-SHA256 专用密钥（JJWT 自动取 SHA-256 摘要长度）
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        // 缓存过期时间
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        // HMAC-SHA256 最小 256 bits (32 字节)；JJWT 会根据算法自动选择 HS256/HS384/HS512
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException(
+                "JWT secret 长度不足 32 字节，当前 " + keyBytes.length + " 字节。"
+                + "JJWT HS256 要求密钥 >= 256 bits (RFC 7518 §3.2)。"
+                + "请设置环境变量 JWT_SECRET 或修改 application.yml 的 cs.jwt.secret。");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.ttlMs = ttlMs;
+        // 脱敏打印（避免明文泄漏密钥）
+        String masked = secret.length() <= 8
+                ? "***"
+                : secret.substring(0, 4) + "***" + secret.substring(secret.length() - 4);
+        log.info("[JWT] JwtUtils initialized: secret_len={} ttl={}ms secret_preview={}",
+                keyBytes.length, ttlMs, masked);
     }
 
     /**
