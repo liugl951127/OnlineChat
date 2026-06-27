@@ -46,7 +46,9 @@ public class WechatOaClient {
 
     /** 第一步：生成授权 URL */
     public String authorizeUrl(String redirectUri, String state, String scope) {
-        String s = scope == null ? "snsapi_base" : scope; // base=静默，userinfo=弹窗
+        // v2.2.38: 默认 snsapi_userinfo (公众号 PC 端 snsapi_base 已废弃)
+        // snsapi_base 仅微信开放平台第三方 / 小程序支持
+        String s = (scope == null || scope.isBlank()) ? "snsapi_userinfo" : scope;
         if (mock) {
             // mock 模式：跳过微信服务器，直接生成 mock code → 跳到前端 callback
             // 模拟用户点击了授权，返回一个 mock code + state → 前端 callback 处理

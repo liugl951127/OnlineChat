@@ -48,6 +48,7 @@ public class AuthController {
     @GetMapping("/wechat-oa/authorize")
     public void oaAuthorize(@RequestParam(name = "redirect_uri", required = false) String redirectUri,
                             @RequestParam(required = false) String state,
+                            @RequestParam(required = false) String scope,
                             @RequestHeader(value = "Referer", required = false) String referer,
                             HttpServletRequest request,
                             HttpServletResponse resp) throws IOException {
@@ -58,8 +59,10 @@ public class AuthController {
         // 4. 默认使用 host + /auth/wechat-oa/callback-json (后端 API, SPA 后续轮询拿 token)
         String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/wechat-oa/callback-json");
         String s = state == null ? UUID.randomUUID().toString() : state;
-        log.info("[OAuth-Authorize] wechat-oa redirectUri={} state={}", finalRedirectUri, s);
-        resp.sendRedirect(authService.oaAuthorizeUrl(finalRedirectUri, s));
+        // v2.2.38: 默认 snsapi_userinfo (公众号 PC 端 snsapi_base 已废弃)
+        String sc = (scope == null || scope.isBlank()) ? "snsapi_userinfo" : scope;
+        log.info("[OAuth-Authorize] wechat-oa redirectUri={} scope={} state={}", finalRedirectUri, sc, s);
+        resp.sendRedirect(authService.oaAuthorizeUrl(finalRedirectUri, s, sc));
     }
 
     /**
@@ -72,12 +75,15 @@ public class AuthController {
     public ApiResponse<Map<String, String>> oaAuthorizeJson(
             @RequestParam(name = "redirect_uri", required = false) String redirectUri,
             @RequestParam(required = false) String state,
+            @RequestParam(required = false) String scope,
             @RequestHeader(value = "Referer", required = false) String referer,
             HttpServletRequest request) {
         String finalRedirectUri = resolveRedirectUri(redirectUri, referer, request, "/auth/wechat-oa/callback-json");
         String s = state == null ? UUID.randomUUID().toString() : state;
-        String url = authService.oaAuthorizeUrl(finalRedirectUri, s);
-        return ApiResponse.ok(Map.of("url", url, "state", s));
+        // v2.2.38: 公众号默认 snsapi_userinfo（snsapi_base 已废弃）
+        String sc = (scope == null || scope.isBlank()) ? "snsapi_userinfo" : scope;
+        String url = authService.oaAuthorizeUrl(finalRedirectUri, s, sc);
+        return ApiResponse.ok(Map.of("url", url, "state", s, "scope", sc));
     }
 
     @GetMapping("/wechat-oa/callback")

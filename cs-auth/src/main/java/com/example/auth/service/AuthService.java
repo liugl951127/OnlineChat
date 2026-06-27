@@ -250,7 +250,17 @@ public class AuthService {
     }
 
     public String oaAuthorizeUrl(String redirectUri, String state) {
-        return oaClient.authorizeUrl(redirectUri, state, "snsapi_base");
+        return oaAuthorizeUrl(redirectUri, state, "snsapi_userinfo");
+    }
+
+    /**
+     * v2.2.38: 支持自定义 scope
+     *
+     * <p>公众号默认 snsapi_userinfo（snsapi_base 在 PC 端已废弃 2022）
+     * 静默授权仅在微信开放平台第三方 / 小程序支持
+     */
+    public String oaAuthorizeUrl(String redirectUri, String state, String scope) {
+        return oaClient.authorizeUrl(redirectUri, state, scope);
     }
 
     public String workAuthorizeUrl(String redirectUri, String state) {
