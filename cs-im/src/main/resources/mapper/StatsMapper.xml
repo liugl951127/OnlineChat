@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.StatsMapper">
+
+    <!-- ============ 会话统计 ============ -->
+
+    <select id="sessionTotals" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COUNT(*) FROM chat_session WHERE deleted = 0) AS total,
+            (SELECT COUNT(*) FROM chat_session WHERE deleted = 0 AND DATE(created_at) = CURDATE()) AS today,
+            (SELECT COUNT(*) FROM chat_session WHERE deleted = 0 AND status IN ('IN_SESSION', 'ROBOT')) AS active
+    </select>
+
+    <select id="sessionByStatus" resultType="java.util.LinkedHashMap">
+        SELECT status AS k, COUNT(*) AS v
+        FROM chat_session
+        WHERE deleted = 0
+        GROUP BY status
+        ORDER BY v DESC
+    </select>
+
+    <select id="sessionByAgent" resultType="java.util.LinkedHashMap">
+        SELECT
+            agent_username AS agent,
+            COUNT(*) AS sessions,
+            SUM(CASE WHEN status = 'ENDED' THEN 1 ELSE 0 END) AS ended,
+            SUM(CASE WHEN status IN ('IN_SESSION', 'ROBOT') THEN 1 ELSE 0 END) AS active
+        FROM chat_session
+        WHERE deleted = 0 AND agent_username IS NOT NULL
+        GROUP BY agent_username
+        ORDER BY sessions DESC
+        LIMIT 20
+    </select>
+
+    <select id="sessionTrend" resultType="java.util.LinkedHashMap">
+        SELECT
+            DATE(created_at) AS day,
+            COUNT(*) AS cnt
+        FROM chat_session
+        WHERE deleted = 0 AND created_at >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC
+    </select>
+
+    <select id="sessionByHourToday" resultType="java.util.LinkedHashMap">
+        SELECT
+            HOUR(created_at) AS hour,
+            COUNT(*) AS cnt
+        FROM chat_session
+        WHERE deleted = 0 AND DATE(created_at) = CURDATE()
+        GROUP BY HOUR(created_at)
+        ORDER BY hour ASC
+    </select>
+
+    <!-- ============ 消息统计 ============ -->
+
+    <select id="messageTotals" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COUNT(*) FROM chat_message WHERE deleted = 0) AS total,
+            (SELECT COUNT(*) FROM chat_message WHERE deleted = 0 AND DATE(created_at) = CURDATE()) AS today,
+            (SELECT COUNT(*) FROM chat_message WHERE deleted = 0 AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)) AS last_hour
+    </select>
+
+    <select id="messageByRole" resultType="java.util.LinkedHashMap">
+        SELECT from_role AS k, COUNT(*) AS v
+        FROM chat_message
+        WHERE deleted = 0
+        GROUP BY from_role
+        ORDER BY v DESC
+    </select>
+
+    <select id="messageByType" resultType="java.util.LinkedHashMap">
+        SELECT type AS k, COUNT(*) AS v
+        FROM chat_message
+        WHERE deleted = 0
+        GROUP BY type
+        ORDER BY v DESC
+    </select>
+
+    <!-- ============ 用户统计 (跨库) ============ -->
+
+    <select id="userTotals" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COUNT(*) FROM cs_auth.wechat_user WHERE deleted = 0) AS total,
+            (SELECT COUNT(*) FROM cs_auth.wechat_user WHERE deleted = 0 AND DATE(created_at) = CURDATE()) AS today,
+            (SELECT COUNT(*) FROM cs_auth.wechat_user WHERE deleted = 0 AND channel = 'OA') AS oa_users,
+            (SELECT COUNT(*) FROM cs_auth.wechat_user WHERE deleted = 0 AND channel = 'WORK') AS work_users,
+            (SELECT COUNT(*) FROM cs_auth.wechat_user WHERE deleted = 0 AND channel = 'LOCAL') AS local_users,
+            (SELECT COUNT(*) FROM cs_auth.wechat_user WHERE deleted = 0 AND subscribe_status = 1) AS subscribed
+    </select>
+
+    <select id="userBySubscribe" resultType="java.util.LinkedHashMap">
+        SELECT
+            CASE subscribe_status
+                WHEN 1 THEN '已关注'
+                WHEN 2 THEN '未关注'
+                ELSE '未知'
+            END AS k,
+            COUNT(*) AS v
+        FROM cs_auth.wechat_user
+        WHERE deleted = 0
+        GROUP BY subscribe_status
+    </select>
+
+    <select id="userTrend" resultType="java.util.LinkedHashMap">
+        SELECT
+            DATE(created_at) AS day,
+            COUNT(*) AS cnt
+        FROM cs_auth.wechat_user
+        WHERE deleted = 0 AND created_at >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC
+    </select>
+
+    <!-- ============ 视频回溯统计 ============ -->
+
+    <select id="replayTotals" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COUNT(*) FROM replay_job) AS total,
+            (SELECT COUNT(*) FROM replay_job WHERE status = 'SUCCESS') AS success,
+            (SELECT COUNT(*) FROM replay_job WHERE status = 'FAILED') AS failed,
+            (SELECT COUNT(*) FROM replay_job WHERE status = 'SUCCESS' AND DATE(finished_at) = CURDATE()) AS today_success
+    </select>
+
+    <select id="replayStorage" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COUNT(*) FROM replay_frame) AS total_frames,
+            (SELECT COALESCE(SUM(duration_ms), 0) FROM replay_job WHERE status = 'SUCCESS') AS total_duration_ms
+    </select>
+
+    <select id="replayTrend" resultType="java.util.LinkedHashMap">
+        SELECT
+            DATE(finished_at) AS day,
+            COUNT(*) AS cnt,
+            SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) AS success_cnt
+        FROM replay_job
+        WHERE finished_at IS NOT NULL
+          AND finished_at >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(finished_at)
+        ORDER BY day ASC
+    </select>
+
+    <!-- ============ 工单/KYC/订单 ============ -->
+
+    <select id="ticketByStatus" resultType="java.util.LinkedHashMap">
+        SELECT status AS k, COUNT(*) AS v
+        FROM ticket
+        WHERE deleted = 0
+        GROUP BY status
+    </select>
+
+    <select id="kycStats" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COUNT(*) FROM kyc_application) AS total,
+            (SELECT COUNT(*) FROM kyc_application WHERE status = 'APPROVED') AS approved,
+            (SELECT COUNT(*) FROM kyc_application WHERE status = 'REJECTED') AS rejected,
+            (SELECT COUNT(*) FROM kyc_application WHERE DATE(created_at) = CURDATE()) AS today
+    </select>
+
+    <select id="orderByStatus" resultType="java.util.LinkedHashMap">
+        SELECT status AS k, COUNT(*) AS v
+        FROM financial_order
+        WHERE deleted = 0
+        GROUP BY status
+    </select>
+
+    <select id="revenueToday" resultType="java.util.LinkedHashMap">
+        SELECT
+            (SELECT COALESCE(SUM(amount), 0) FROM financial_order
+             WHERE deleted = 0 AND status = 'SETTLED' AND DATE(paid_at) = CURDATE()) AS today_settled,
+            (SELECT COALESCE(SUM(amount), 0) FROM financial_order
+             WHERE deleted = 0 AND status = 'SETTLED') AS total_settled
+    </select>
+
+</mapper>

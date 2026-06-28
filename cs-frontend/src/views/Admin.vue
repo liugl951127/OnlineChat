@@ -161,8 +161,11 @@ onMounted(() => {
       </el-header>
 
       <el-main>
-        <!-- Dashboard -->
-        <div v-if="activeTab === 'dashboard'" class="dashboard">
+        <!-- Dashboard (v2.2.83 增强版 - 18 指标 + 6 图表) -->
+        <div v-if="activeTab === 'dashboard'">
+          <Dashboard />
+        </div>
+        <div v-else-if="activeTab === 'dashboard-old'" class="dashboard" style="display:none">
           <el-row :gutter="16">
             <el-col :span="6" v-for="(item, idx) in [
               { label: '今日会话', value: dashboard.todaySessions || 0, color: '#1677ff', icon: 'ChatDotRound' },

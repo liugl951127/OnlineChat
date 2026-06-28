@@ -209,7 +209,7 @@ export const admin = {
   sessions: params => request.get('/admin/sessions', { params }),
   forceHangup: (sessionId, reason) => request.post(`/admin/force-hangup/${sessionId}`, { reason }),
   audit: params => request.get('/admin/audit', { params }),
-  dashboard: () => request.get('/admin/dashboard'),
+  dashboard: () => request.get('/im/stats/dashboard/all'),
   blacklist: data => request.post('/admin/blacklist', data)
 }
 

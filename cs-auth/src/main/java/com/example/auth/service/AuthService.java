@@ -329,7 +329,8 @@ public class AuthService {
     // ==================== 管理员 ====================
 
     public Map<String, Object> adminLogin(String username, String password) {
-        if (!"admin".equals(username) || !"admin".equals(password)) {
+        // v2.2.83: 兼容两种密码 (admin/admin123, 与 seed.sql 一致)
+        if (!"admin".equals(username) || (!"admin".equals(password) && !"admin123".equals(password))) {
             throw new ApiException(401, "账号或密码错误");
         }
         Map<String, Object> claims = new HashMap<>();
@@ -339,7 +340,13 @@ public class AuthService {
         claims.put("channel", "LOCAL");
         claims.put("adminLevel", "SUPER");
         String token = jwtUtils.issue("admin", claims);
-        return Map.of("token", token, "role", "ADMIN", "displayName", "系统管理员");
+        Map<String, Object> result = new HashMap<>();
+        result.put("token", token);
+        result.put("role", "ADMIN");
+        result.put("userId", "admin");
+        result.put("displayName", "系统管理员");
+        result.put("channel", "LOCAL");
+        return result;
     }
 
     // ==================== 通用 ====================

@@ -270,7 +270,7 @@ public class AuthController {
         if (req.getUsername() == null || req.getPassword() == null) {
             throw new ApiException(400, "账号/密码必填");
         }
-        Map<String, Object> body = authService.adminLogin(req.getUsername(), req.getPassword());
+        Map<String, Object> body = new java.util.HashMap<>(authService.adminLogin(req.getUsername(), req.getPassword()));
         body.put("csrf", csrfIssuer.issue(resp));
         return ApiResponse.ok(body);
     }
