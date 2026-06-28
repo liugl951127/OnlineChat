@@ -9,7 +9,8 @@ export const auth = {
   adminLogin: data => request.post('/auth/admin/login', data),
   /** v2.2.40: 坐席账号密码登录 */
   agentLogin: (username, password) => request.post('/auth/agent/login', { username, password }),
-  silent: data => request.post('/auth/silent', data),
+  /** v2.2.66: 访客静默登录 (后端端点 /auth/silent-login) */
+  silent: data => request.post('/auth/silent-login', data),
   me: () => request.get('/auth/me'),
   logout: () => request.post('/auth/logout'),
   /** v2.2.31: 拿 OAuth 授权 URL (JSON 形式，避开 PC 端 302 弹窗拦截) */
