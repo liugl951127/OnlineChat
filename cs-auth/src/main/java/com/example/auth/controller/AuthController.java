@@ -46,7 +46,8 @@ public class AuthController {
     // ============ 客户：静默 / OAuth ============
     @PostMapping("/silent-login")
     public ApiResponse<Map<String, Object>> silentLogin(@RequestBody(required = false) SilentReq req) {
-        return ApiResponse.ok(authService.silentLogin(req == null ? null : req.getTempCode()));
+        // v2.2.75: SilentReq.deviceId (不是 tempCode)
+        return ApiResponse.ok(authService.silentLogin(req == null ? null : req.getDeviceId()));
     }
 
     @GetMapping("/wechat-oa/authorize")

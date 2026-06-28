@@ -46,6 +46,12 @@ public class WechatUserRepo {
         return Optional.ofNullable(mapper.selectOne(new QueryWrapper<WechatUser>().eq("openid", openid)));
     }
 
+    /** v2.2.74: 按 unionid 查询 (同一微信开放平台下多个公众号关联同一用户) */
+    public Optional<WechatUser> findByUnionid(String unionid) {
+        if (unionid == null || unionid.isBlank()) return Optional.empty();
+        return Optional.ofNullable(mapper.selectOne(new QueryWrapper<WechatUser>().eq("unionid", unionid)));
+    }
+
     public Optional<WechatUser> findByWwUserid(String wwUserid) {
         return Optional.ofNullable(mapper.selectOne(new QueryWrapper<WechatUser>().eq("ww_userid", wwUserid)));
     }

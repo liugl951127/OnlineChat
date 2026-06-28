@@ -64,18 +64,20 @@ public class AuthService {
             finalDeviceId = deviceId;
         }
         String openid = "dev-" + finalDeviceId;
+        // v2.2.75: existingCid 在 lambda 外生成, 避免 lambda 引用被重新赋值的变量
+        String existingCid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.length()));
+        if (existingCid.length() < 3) {
+            existingCid = "c-" + UUID.randomUUID().toString().substring(0, 12);
+        }
+        final String finalExistingCid = existingCid;
         WechatUser u = userRepo.findByOpenid(openid).orElseGet(() -> {
             // v2.2.74: 检查是否已有该设备号的记录 (customerId 去重)
             // 场景: 客户先用设备号登录, 后来扫码公众号但 openid 变了
             //       只要 unionid/openid 关联同一客户, 设备号也复用
-            String existingCid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.length()));
-            if (existingCid.length() < 3) {
-                existingCid = "c-" + UUID.randomUUID().toString().substring(0, 12);
-            }
-            // 检查该 customerId 是否已存在 (可能是其他渠道创建的同名 cid)
-            return userRepo.findByCustomerId(existingCid).orElseGet(() ->
+            // v2.2.75: 引用 finalExistingCid (避免 effectively final 问题)
+            return userRepo.findByCustomerId(finalExistingCid).orElseGet(() ->
                 userRepo.save(WechatUser.builder()
-                    .customerId(existingCid).openid(openid).nickname("访客").build())
+                    .customerId(finalExistingCid).openid(openid).nickname("访客").build())
             );
         });
         return tokenResponse(u, "OA");
