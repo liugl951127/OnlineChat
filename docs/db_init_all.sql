@@ -14,6 +14,7 @@
 -- ============================================================
 CREATE DATABASE IF NOT EXISTS cs_auth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS cs_im CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS cs_message CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 1. cs-auth（1 张表）
@@ -560,11 +561,15 @@ INSERT INTO product (product_code, name, product_type, risk_level, min_amount, y
 SELECT 'cs_auth' AS db, COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'cs_auth'
 UNION ALL
 SELECT 'cs_im', COUNT(*) FROM information_schema.tables WHERE table_schema = 'cs_im';
+
 -- =====================================================
--- cs_message 表（v2.2.52 补建）
+-- cs_message 数据库 (v2.2.52 新增)
 -- =====================================================
-DROP TABLE IF EXISTS cs_message.offline_message;
-CREATE TABLE cs_message.offline_message (
+CREATE DATABASE IF NOT EXISTS cs_message CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE cs_message;
+
+DROP TABLE IF EXISTS offline_message;
+CREATE TABLE offline_message (
     id          BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id     VARCHAR(64) NULL,
     msg_id      VARCHAR(64) NULL,
@@ -580,3 +585,5 @@ CREATE TABLE cs_message.offline_message (
     INDEX idx_delivered (delivered),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OfflineMessage';
+
+SELECT 'cs_message' AS db, COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'cs_message';
