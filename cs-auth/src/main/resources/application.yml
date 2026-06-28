@@ -10,18 +10,16 @@ spring:
     active: prod
   application:
     name: cs-auth
-  # v2.2.63: 不使用 spring.config.import (避免空值报错)
-  #  Spring Cloud Alibaba nacos-config 通过 spring.cloud.nacos.config 自动拉取配置
-  #  Data ID 规则: ${spring.application.name}-${spring.profiles.active}.${file-extension}
-  #  示例: cs-auth + prod + yaml → cs-auth-prod.yaml
-  #  启动时不需要显式 spring.config.import
+  # v2.2.64: Nacos 配置导入 (optional: 配不到不报错)
+  config:
+    import: "optional:nacos:cs-auth-prod.yaml"
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:
       discovery:
         enabled: ${NACOS_DISCOVERY_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        namespace: ${NACOS_NAMESPACE:public}
+        namespace: ${NACOS_NAMESPACE:prod}
         # v2.2.59: nacos 鉴权 (默认 nacos/nacos, 生产改 ${NACOS_USER}:${NACOS_PASSWORD})
         username: ${NACOS_USER:nacos}
         password: ${NACOS_PASSWORD:nacos}
@@ -29,12 +27,10 @@ spring:
         heartbeat-interval: 5000
         heart-beat-timeout: 15000
 
-      # v2.2.60: nacos-config 属性配置 (代替 spring.config.import)
-      # 自动拉取 cs-auth-{spring.profiles.active}.yaml
+      # v2.2.64: Nacos 配置中心 (供 spring.config.import 用)
       config:
-        enabled: ${NACOS_CONFIG_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        namespace: ${NACOS_NAMESPACE:public}
+        namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
         password: ${NACOS_PASSWORD:nacos}
         file-extension: yaml

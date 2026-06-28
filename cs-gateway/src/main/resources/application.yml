@@ -10,21 +10,20 @@ spring:
     # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     # cs-common 传递依赖 spring-boot-starter-web，需明确指定为 reactive 避免冲突
     web-application-type: reactive
-  # v2.2.60: 不使用 spring.config.import, 改为 spring.cloud.nacos.config 属性配置
-  #  原因: nacos-config 自动拉取 {spring.application.name}-{profile}.yaml
-  # v2.2.63: 不使用 spring.config.import (避免空值报错)
-  #  Spring Cloud Alibaba nacos-config 通过 spring.cloud.nacos.config 自动拉取配置
-  #  Data ID 规则: ${spring.application.name}-${spring.profiles.active}.${file-extension}
-  #  示例: cs-gateway + prod + yaml → cs-gateway-prod.yaml
-  #  启动时不需要显式 spring.config.import
-  # nacos 服务发现: 注册到 nacos
+  # v2.2.64: Nacos 配置导入（optional 表示配置不存在时不报错）
+  # Spring Cloud Alibaba 自动识别 optional:nacos: 前缀, 拉远程配置
+  # Data ID 必须是完整 .yaml 后缀:
+  #   cs-gateway-prod.yaml
+  #   cs-gateway.yaml (基础配置,可选)
+  config:
+    import: "optional:nacos:cs-gateway-prod.yaml"
   cloud:
     nacos:
       discovery:
         # 默认启用注册: 服务向 nacos 自动注册 (v2.2.47)
         enabled: ${NACOS_DISCOVERY_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        namespace: ${NACOS_NAMESPACE:public}
+        namespace: ${NACOS_NAMESPACE:prod}
         # v2.2.59: nacos 鉴权 (默认 nacos/nacos, 生产改 ${NACOS_USER}:${NACOS_PASSWORD})
         username: ${NACOS_USER:nacos}
         password: ${NACOS_PASSWORD:nacos}
@@ -32,18 +31,14 @@ spring:
         # 心跳 5s, 超时 15s 剔除
         heartbeat-interval: 5000
         heart-beat-timeout: 15000
-      # v2.2.60: nacos-config 属性配置 (代替 spring.config.import)
-      # 不使用 spring.config.import 而是使用 spring.cloud.nacos.config
-      # Spring Cloud Alibaba 自动拉取 {spring.application.name}-{profile}.yaml
+      # v2.2.64: Nacos 配置中心 (供 spring.config.import 用)
+      # spring.config.import: optional:nacos:cs-gateway-prod.yaml 会自动加载
       config:
-        enabled: ${NACOS_CONFIG_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
-        namespace: ${NACOS_NAMESPACE:public}
+        namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
         password: ${NACOS_PASSWORD:nacos}
         file-extension: yaml
-        # 自动拉取 cs-gateway-{profile}.yaml
-        # 不需要 spring.config.import
     gateway:
       # v2.2.47: 路由用 lb://cs-auth (通过 nacos 服务发现负载均衡)
       # 沙箱 nacos 不可达时，gateway 会 fallback 报错但仍能启动
