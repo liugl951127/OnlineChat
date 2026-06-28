@@ -47,11 +47,11 @@ CREATE TABLE wechat_user (
     last_login_ip         VARCHAR(255) NULL,
     created_at            DATETIME NULL,
     updated_at            DATETIME NULL,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
     INDEX idx_created_at (created_at),
     INDEX idx_deleted (deleted)
-    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='WechatUser';
 
 -- ============================================================
