@@ -153,11 +153,11 @@ CREATE TABLE bill (
     status                VARCHAR(64) NULL,
     remark                TEXT NULL,
     created_at            DATETIME NULL,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
     INDEX idx_created_at (created_at),
     INDEX idx_deleted (deleted)
-    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bill';
 
 -- ChatMessage（自动生成）
@@ -197,12 +197,12 @@ CREATE TABLE chat_session (
     created_at            DATETIME NULL,
     updated_at            DATETIME NULL,
     video_replay_url      VARCHAR(64) NULL,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_customer (customer_id),
     INDEX idx_agent (agent_username),
     INDEX idx_status (status),
     INDEX idx_created_at (created_at),
     INDEX idx_deleted (deleted)
-    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ChatSession';
 
 -- ComplianceCheck（自动生成）
@@ -239,11 +239,11 @@ CREATE TABLE contract (
     status                VARCHAR(64) NULL,
     created_at            DATETIME NULL,
     updated_at            DATETIME NULL,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
     INDEX idx_created_at (created_at),
     INDEX idx_deleted (deleted)
-    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Contract';
 
 -- Faq（自动生成）
@@ -425,10 +425,10 @@ CREATE TABLE product (
     status                VARCHAR(64) NULL,
     created_at            DATETIME NULL,
     updated_at            DATETIME NULL,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_status (status),
     INDEX idx_created_at (created_at),
     INDEX idx_deleted (deleted)
-    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Product';
 
 -- RiskAssessment（自动生成）
@@ -441,10 +441,10 @@ CREATE TABLE risk_assessment (
     answers_json          TEXT NULL,
     expires_at            DATETIME NULL,
     created_at            DATETIME NULL,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_customer (customer_id),
     INDEX idx_created_at (created_at),
     INDEX idx_deleted (deleted)
-    deleted               TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RiskAssessment';
 
 -- ScreenShareSession（自动生成）
