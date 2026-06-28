@@ -35,10 +35,39 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+            <!-- v2.2.77: 排除 nacos-client 传递的 servlet 依赖
+                 cs-gateway 是 WebFlux 响应式栈, 不需要 servlet
+                 否则 nacos-client 启动时反射加载 javax.servlet.* 类失败 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>javax.servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>javax.servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- v2.2.77: nacos-client 显式版本 (用 reactive 兼容的 2.4.0+, WebFlux 支持)
+             Spring Cloud Alibaba 2023.0.1.0 默认拉 2.3.2, 2.3.x 需 servlet.
+             2.4.x 起官方支持 reactive. -->
+        <dependency>
+            <groupId>com.alibaba.nacos</groupId>
+            <artifactId>nacos-client</artifactId>
+            <version>2.4.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>javax.servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
