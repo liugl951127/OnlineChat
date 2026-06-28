@@ -33,8 +33,11 @@ public class CsrfFilter implements Filter {
         "/auth/login", "/auth/login-phone", "/auth/register",
         "/auth/admin/login", "/auth/silent",
         "/auth/wx-mini/login", "/auth/wx-oa/h5-entry",
-        "/auth/wechat-oa/callback", "/auth/wechat-work/callback",
-        "/auth/github/callback", "/auth/google/callback"
+        "/auth/wechat-oa/callback", "/auth/wechat-oa/callback-json",
+        "/auth/wechat-work/callback", "/auth/github/callback",
+        "/auth/google/callback",
+        // v2.2.80: subscribe-check + qrcode-for-subscribe
+        "/auth/wechat-oa/subscribe-check", "/auth/wechat-oa/qrcode-for-subscribe"
     );
 
     @Override

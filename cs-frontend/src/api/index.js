@@ -16,6 +16,9 @@ export const auth = {
   /** v2.2.31: 拿 OAuth 授权 URL (JSON 形式，避开 PC 端 302 弹窗拦截) */
   oauthAuthorizeJson: (provider, redirectUri, scope) =>
     request.get(`/auth/${provider}/authorize-json`, { params: { redirect_uri: redirectUri, scope } }),
+  // v2.2.80: 公众号关注检查 + 二维码
+  checkOaSubscribe: openid => request.get('/auth/wechat-oa/subscribe-check', { params: { openid } }),
+  qrcodeForSubscribe: sceneId => request.post('/auth/wechat-oa/qrcode-for-subscribe', { sceneId }),
   /** v2.2.39: 设备自适应 OAuth provider 推荐 */
   oauthRecommend: () => request.get('/auth/oauth/recommend'),
   githubUrl: redirect => request.get('/auth/github/authorize', { params: { redirect_uri: redirect } }),

@@ -104,10 +104,25 @@ public class AuthService {
         String finalNickname = userInfo != null ? userInfo.get("nickname") : null;
         String finalAvatar = userInfo != null ? userInfo.get("avatar") : null;
 
-        // v2.2.74: 多层去重查找 (避免客户信息错乱)
-        // 1. 先按 openid 查 (同一公众号重复访问 -> 同一用户)
-        // 2. 再按 unionid 查 (同一微信开放平台下多个公众号 -> 同一用户)
-        // 3. 最后按 phone 查 (设备号用户 + 手机号后, 公众号合并)
+        // v2.2.80: 检查是否已关注公众号
+        Boolean subscribedNullable = oaClient.checkSubscribe(openid);
+        boolean subscribed = subscribedNullable != null && subscribedNullable;
+        if (subscribedNullable == null) {
+            log.warn("[Auth] checkSubscribe 失败, 默认放过 openid={}", openid);
+            subscribed = true;
+        }
+
+        if (!subscribed) {
+            log.info("[Auth] 用户未关注公众号 openid={}, 需扫码关注", openid);
+            Map<String, Object> errResp = new HashMap<>();
+            errResp.put("openid", openid);
+            errResp.put("unionid", finalUnionid);
+            errResp.put("qrcodeUrl", oaClient.generateQrcodeUrl(openid));
+            errResp.put("subscribeUrl", "https://mp.weixin.qq.com/s/" + openid);
+            throw new ApiException(451, "请先关注公众号").withData(errResp);
+        }
+
+        // v2.2.74: 多层去重查找
         WechatUser u = userRepo.findByOpenid(openid).orElse(null);
         if (u == null && finalUnionid != null && !finalUnionid.isBlank()) {
             u = userRepo.findByUnionid(finalUnionid).orElse(null);
@@ -120,6 +135,8 @@ public class AuthService {
                     .customerId(cid).openid(openid).unionid(finalUnionid)
                     .nickname(finalNickname != null ? finalNickname : "微信客户")
                     .avatar(finalAvatar)
+                    .subscribeStatus(1)
+                    .subscribeCheckedAt(LocalDateTime.now())
                     .build();
             u = userRepo.save(newUser);
         } else {
@@ -140,11 +157,13 @@ public class AuthService {
         if ((u.getNickname() == null || u.getNickname().isBlank()) && finalNickname != null) {
             u.setNickname(finalNickname);
         }
+        // v2.2.80: 更新关注状态
+        u.setSubscribeStatus(1);
+        u.setSubscribeCheckedAt(LocalDateTime.now());
         u = userRepo.save(u);
 
         Map<String, Object> resp = tokenResponse(u, "OA");
-        // v2.2.69: 返回中加 subscribe 标志 (是否关注公众号)
-        resp.put("subscribed", userInfo != null);
+        resp.put("subscribed", subscribed);
         return resp;
     }
 
@@ -266,7 +285,8 @@ public class AuthService {
         u.setLoginFailCount(0);
         u.setLockUntil(null);
         userRepo.save(u);
-        return tokenResponse(u, "OA");
+        // v2.2.80: 密码登录 channel = LOCAL (不调微信, 完全独立)
+        return tokenResponse(u, "LOCAL");
     }
 
     private void recordFail(WechatUser u, String username) {

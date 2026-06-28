@@ -43,6 +43,10 @@ CREATE TABLE wechat_user (
     role                  VARCHAR(64) NULL,
     status                INT NULL,
     channel               VARCHAR(64) NULL,
+    -- v2.2.80: 公众号关注状态 + 设备绑定
+    subscribe_status      TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=未知 1=已关注 2=未关注',
+    subscribe_checked_at  DATETIME NULL COMMENT '最近一次检查关注状态时间',
+    device_id             VARCHAR(64) NULL COMMENT 'v2.2.80: 设备号, 用于设备号+公众号绑定',
     last_login_time       DATETIME NULL,
     last_login_ip         VARCHAR(255) NULL,
     created_at            DATETIME NULL,
@@ -51,8 +55,42 @@ CREATE TABLE wechat_user (
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
     INDEX idx_created_at (created_at),
-    INDEX idx_deleted (deleted)
+    INDEX idx_deleted (deleted),
+    INDEX idx_subscribe (subscribe_status),
+    INDEX idx_device (device_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='WechatUser';
+
+-- WechatOauthState OAuth state 防CSRF (v2.2.80)
+DROP TABLE IF EXISTS wechat_oauth_state;
+CREATE TABLE wechat_oauth_state (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    state                 VARCHAR(64) NOT NULL,
+    scope                 VARCHAR(64) NULL,
+    redirect_uri          VARCHAR(512) NULL,
+    device_id             VARCHAR(64) NULL,
+    user_id               VARCHAR(64) NULL COMMENT '已登录用户刷新关注状态时存',
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at            DATETIME NOT NULL,
+    consumed              TINYINT(1) NOT NULL DEFAULT 0,
+    INDEX idx_state (state),
+    INDEX idx_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='WechatOauthState';
+
+-- WechatSubscribeLog 关注状态变更日志 (v2.2.80)
+DROP TABLE IF EXISTS wechat_subscribe_log;
+CREATE TABLE wechat_subscribe_log (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    openid                VARCHAR(64) NOT NULL,
+    customer_id           VARCHAR(64) NULL,
+    old_status            TINYINT(1) NULL,
+    new_status            TINYINT(1) NOT NULL COMMENT '1=已关注 2=未关注',
+    check_source          VARCHAR(64) NULL COMMENT 'OAUTH_CALLBACK / QRCODE / SCHEDULED',
+    source_ip             VARCHAR(64) NULL,
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_openid (openid),
+    INDEX idx_customer (customer_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='WechatSubscribeLog';
 
 -- ============================================================
 -- 2. cs-im（23 张表）

@@ -18,6 +18,19 @@ spring:
   config:
     import: "optional:nacos:cs-gateway-prod.yaml"
   cloud:
+    # v2.2.80: LoadBalancer 服务实例缓存 (避免每次请求查 nacos)
+    # 需引入 spring-cloud-starter-loadbalancer + caffeine 依赖
+    # 启用了 spring-cloud-loadbalancer-cache 自动配置 (CaffeineBasedLoadBalancerCacheManager)
+    loadbalancer:
+      cache:
+        enabled: true
+        # 30 秒后强制刷新服务列表
+        ttl: 30s
+        # 最多缓存 100 个服务
+        capacity: 100
+        # Caffeine 完整 spec (覆盖 ttl/capacity)
+        caffeine:
+          spec: expireAfterWrite=30s,maximumSize=100,recordStats
     nacos:
       discovery:
         # 默认启用注册: 服务向 nacos 自动注册 (v2.2.47)

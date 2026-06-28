@@ -163,4 +163,68 @@ public class WechatOaClient {
 
     private static String url(String s) { return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8); }
     private static String str(JsonNode n, String k) { return n.has(k) ? n.get(k).asText() : ""; }
+
+    /**
+     * v2.2.80: 检查用户是否已关注公众号
+     */
+    public Boolean checkSubscribe(String openid) {
+        if (mock) {
+            boolean subscribed = Math.random() > 0.05;
+            log.info("[WechatOA-MOCK] checkSubscribe openid={} subscribed={}", openid, subscribed);
+            return subscribed;
+        }
+        try {
+            String tokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=" + appId + "&secret=" + appSecret;
+            JsonNode tokenNode = json.readTree(http.getForObject(tokenUrl, String.class));
+            String accessToken = str(tokenNode, "access_token");
+            if (accessToken == null || accessToken.isBlank()) {
+                log.warn("[WechatOA] checkSubscribe get token failed: {}", tokenNode);
+                return null;
+            }
+            String userUrl = "https://api.weixin.qq.com/cgi-bin/user/info?access_token=" + url(accessToken) + "&openid=" + url(openid) + "&lang=zh_CN";
+            JsonNode userNode = json.readTree(http.getForObject(userUrl, String.class));
+            if (userNode.has("errcode") && userNode.get("errcode").asInt() != 0) {
+                log.warn("[WechatOA] checkSubscribe errcode={} errmsg={}", userNode.get("errcode").asInt(), str(userNode, "errmsg"));
+                return null;
+            }
+            return "1".equals(str(userNode, "subscribe"));
+        } catch (Exception e) {
+            log.error("[WechatOA] checkSubscribe failed", e);
+            return null;
+        }
+    }
+
+    /**
+     * v2.2.80: 生成公众号关注二维码 URL
+     */
+    public String generateQrcodeUrl(String sceneId) {
+        if (mock) {
+            return "MOCK-QRCODE-" + sceneId;
+        }
+        try {
+            String tokenUrl = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=" + appId + "&secret=" + appSecret;
+            JsonNode tokenNode = json.readTree(http.getForObject(tokenUrl, String.class));
+            String accessToken = str(tokenNode, "access_token");
+            if (accessToken == null || accessToken.isBlank()) return null;
+            String url = "https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=" + url(accessToken);
+            Map<String, Object> body = new HashMap<>();
+            body.put("expire_seconds", 1800);
+            body.put("action_name", "QR_STR_SCENE");
+            Map<String, Object> scene = new HashMap<>();
+            scene.put("scene_str", sceneId);
+            Map<String, Object> actionInfo = new HashMap<>();
+            actionInfo.put("scene", scene);
+            body.put("action_info", actionInfo);
+            JsonNode qrNode = json.readTree(http.postForObject(url, body, String.class));
+            String qrUrl = str(qrNode, "url");
+            if (qrUrl != null && !qrUrl.isBlank()) return qrUrl;
+            String ticket = str(qrNode, "ticket");
+            return ticket != null && !ticket.isBlank()
+                    ? "https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=" + url(ticket)
+                    : null;
+        } catch (Exception e) {
+            log.error("[WechatOA] generateQrcode failed", e);
+            return null;
+        }
+    }
 }

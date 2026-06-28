@@ -3,9 +3,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { auth } from '@/api'
+import request from '@/api/request'
 import { useUserStore } from '@/store/user'
 import { maskMobile, getDeviceId } from '@/utils'
 import { isMockEnabled } from '@/api/mock'
+import SubscribeDialog from '@/components/SubscribeDialog.vue'  // v2.2.80
 
 const isMockMode = ref(isMockEnabled())
 
@@ -31,6 +33,15 @@ const sendCooldown = ref(0)
 
 const passwordForm = reactive({ username: '', password: '' })
 const phoneForm = reactive({ phone: '', code: '' })
+
+// v2.2.80: 公众号关注弹窗状态
+const subscribeDialog = reactive({
+  visible: false,
+  qrcodeUrl: '',
+  subscribeUrl: '',
+  openid: '',
+  pendingCode: ''     // 用户扫码关注后, 重新调用 callback-json
+})
 const agentForm = reactive({ username: '', password: '' })  // v2.2.40
 const registerForm = reactive({ username: '', password: '', confirm: '' })
 const registerMode = ref(false)
@@ -81,6 +92,22 @@ async function loginByPhone() {
 }
 
 // v2.2.68: 访客登录 (静默分配客服, 用设备号切丁客户唯一标识)
+// v2.2.80: 公众号订阅成功, 重新调用 callback-json 完成登录
+async function finishOaLogin(code) {
+  try {
+    const { data } = await request.post('/auth/wechat-oa/callback-json', { code })
+    if (data.code === 0) {
+      handleLoginSuccess(data.data)
+      ElMessage.success('公众号登录成功')
+      subscribeDialog.visible = false
+    } else {
+      ElMessage.error(data.msg || '登录失败')
+    }
+  } catch (e) {
+    ElMessage.error('登录失败: ' + (e.message || ''))
+  }
+}
+
 async function silentLogin() {
   submitting.value = true
   try {
@@ -156,31 +183,56 @@ function handleLoginSuccess(data) {
 }
 
 async function oauthLogin(provider) {
-  // 开箱即用：axios 拿 JSON 形式的 redirect URL（避免 PC 端 302 弹窗被拦截）
-  // 1. 先调 authorize-json 拿到微信授权 URL（带上当前域名作为 redirect_uri）
-  // 2. window.location.href = url 跳转（这一步是必要的，PC 端会显示二维码）
+  // v2.2.80: 公众号登录需要走两步:
+  //   1. authorize-json -> 拿到 mock 模式下的 url (含 code=...&state=...)
+  //   2. callback-json -> 后端用 code 换 openid + 检查关注
+  //      2a. 已关注 -> 成功登录, 跳转
+  //      2b. 未关注 (451) -> 弹 SubscribeDialog, 用户扫码后重新调用 callback-json
+
   const redirectUri = `${location.origin}/auth/${provider}/callback`
   try {
-    // v2.2.39: 根据设备推荐 scope（微信内静默 / 其他 snsapi_userinfo）
     const { data } = await auth.oauthAuthorizeJson(provider, redirectUri, recommendedScope.value)
-    if (data.code === 0 && data.data?.url) {
-      // mock 模式下 url 是 redirect_uri?code=MOCK-xxx，需要前端路由处理
-      // 真实模式下 url 是 open.weixin.qq.com/...，浏览器直接跳转
-      if (data.data.url.includes('mock=true')) {
-        // mock: 直接 window.location 跳转，前端路由会自动跳到 /auth/{provider}/callback
-        window.location.href = data.data.url
-      } else {
-        // 真实微信: 跳转
-        window.location.href = data.data.url
-      }
+    if (data.code !== 0 || !data.data?.url) {
+      ElMessage.error(data.msg || '授权初始化失败')
       return
     }
-    ElMessage.error(data.msg || '授权初始化失败')
+    const url = data.data.url
+    let code = null
+
+    if (url.includes('mock=true')) {
+      // mock: 客户端解析 URL, 不真的跳页面
+      const u = new URL(url, location.origin)
+      code = u.searchParams.get('code')
+    } else {
+      // 真实: 跳转, 由 OAuthCallback 组件或 redirect_uri 后端路由处理
+      window.location.href = url
+      return
+    }
+
+    if (!code) {
+      ElMessage.error('未拿到授权 code')
+      return
+    }
+
+    // 调用 callback-json 检查关注状态
+    const cbRes = await request.post(`/auth/${provider}/callback-json`, { code })
+    if (cbRes.data.code === 0) {
+      handleLoginSuccess(cbRes.data.data)
+      ElMessage.success('公众号登录成功')
+    } else if (cbRes.data.code === 451) {
+      const errData = cbRes.data.data || {}
+      subscribeDialog.qrcodeUrl = errData.qrcodeUrl || ''
+      subscribeDialog.subscribeUrl = errData.subscribeUrl || ''
+      subscribeDialog.openid = errData.openid || ''
+      subscribeDialog.pendingCode = code
+      subscribeDialog.visible = true
+      ElMessage.warning('请先关注公众号')
+    } else {
+      ElMessage.error(cbRes.data.msg || '授权回调失败')
+    }
   } catch (e) {
-    ElMessage.error('网络错误: ' + (e.message || 'unknown'))
-    // 兜底: 用 location.href 302 流程
-    const redirectUri = `${location.origin}/auth/${provider}/callback`
-    location.href = `/auth/${provider}/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
+    console.error('[oauthLogin] error:', e)
+    ElMessage.error('授权失败: ' + (e.message || ''))
   }
 }
 </script>
@@ -321,6 +373,19 @@ async function oauthLogin(provider) {
         </el-button>
       </div>
     </el-card>
+
+    <!-- v2.2.80: 公众号关注引导弹窗 -->
+    <SubscribeDialog
+      v-model="subscribeDialog.visible"
+      :qrcode-url="subscribeDialog.qrcodeUrl"
+      :subscribe-url="subscribeDialog.subscribeUrl"
+      :openid="subscribeDialog.openid"
+      @recheck="data => {
+        if (data.subscribed && subscribeDialog.pendingCode) {
+          finishOaLogin(subscribeDialog.pendingCode)
+        }
+      }"
+    />
   </div>
 </template>
 

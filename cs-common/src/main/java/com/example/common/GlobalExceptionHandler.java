@@ -11,6 +11,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponse<Object>> handleApi(ApiException e) {
+        // v2.2.80: 带 data 的 ApiException 把 data 一起返回 (公众号关注二维码场景)
+        Object data = e.getData();
+        if (data != null) {
+            return ResponseEntity.status(e.getCode()).body(
+                    new ApiResponse<>(e.getCode(), e.getMessage(), data,
+                            System.currentTimeMillis(), null));
+        }
         return ResponseEntity.status(e.getCode()).body(ApiResponse.fail(e.getCode(), e.getMessage()));
     }
 

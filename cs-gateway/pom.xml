@@ -81,6 +81,11 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
+        <!-- v2.2.80: Caffeine 缓存用于 LoadBalancer 服务实例缓存 (避免每次请求都查 nacos) -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <!-- v2.2.52: NacosBootstrapTest 需要 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

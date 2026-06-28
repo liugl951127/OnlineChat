@@ -37,6 +37,11 @@ public class WechatUser {
     private String role;
     private Integer status;
     private String channel;
+    // v2.2.80: 公众号关注状态 (0=未知 1=已关注 2=未关注)
+    private Integer subscribeStatus;
+    private LocalDateTime subscribeCheckedAt;
+    // v2.2.80: 设备号 (用于公众号+设备号绑定)
+    private String deviceId;
     private LocalDateTime lastLoginTime;
     private String lastLoginIp;
     private LocalDateTime createdAt;
