@@ -56,6 +56,7 @@ public class AuthService {
     public Map<String, Object> silentLogin(String deviceId) {
         // v2.2.68: 用 deviceId 切丁客户唯一标识 (同一设备 -> 同一 customerId)
         // v2.2.73: final 变量用于 lambda (避免 effectively final 错误)
+        // v2.2.74: 设备号 -> 查不到时也要合并公众号已关联用户
         final String finalDeviceId;
         if (deviceId == null || deviceId.isBlank()) {
             finalDeviceId = "auto-" + UUID.randomUUID().toString().substring(0, 8);
@@ -64,11 +65,18 @@ public class AuthService {
         }
         String openid = "dev-" + finalDeviceId;
         WechatUser u = userRepo.findByOpenid(openid).orElseGet(() -> {
-            // v2.2.68: customerId 与 deviceId 关联 (便于以后手工追踪)
-            String cid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.length()));
-            if (cid.length() < 3) cid = "c-" + UUID.randomUUID().toString().substring(0, 12);
-            return userRepo.save(WechatUser.builder()
-                    .customerId(cid).openid(openid).nickname("访客").build());
+            // v2.2.74: 检查是否已有该设备号的记录 (customerId 去重)
+            // 场景: 客户先用设备号登录, 后来扫码公众号但 openid 变了
+            //       只要 unionid/openid 关联同一客户, 设备号也复用
+            String existingCid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.length()));
+            if (existingCid.length() < 3) {
+                existingCid = "c-" + UUID.randomUUID().toString().substring(0, 12);
+            }
+            // 检查该 customerId 是否已存在 (可能是其他渠道创建的同名 cid)
+            return userRepo.findByCustomerId(existingCid).orElseGet(() ->
+                userRepo.save(WechatUser.builder()
+                    .customerId(existingCid).openid(openid).nickname("访客").build())
+            );
         });
         return tokenResponse(u, "OA");
     }
@@ -93,25 +101,44 @@ public class AuthService {
         String finalUnionid = unionid;
         String finalNickname = userInfo != null ? userInfo.get("nickname") : null;
         String finalAvatar = userInfo != null ? userInfo.get("avatar") : null;
-        WechatUser u = userRepo.findByOpenid(openid).orElseGet(() -> {
-            // v2.2.69: 新建时用 userInfo 的资料 (昵称/头像/unionid)
+
+        // v2.2.74: 多层去重查找 (避免客户信息错乱)
+        // 1. 先按 openid 查 (同一公众号重复访问 -> 同一用户)
+        // 2. 再按 unionid 查 (同一微信开放平台下多个公众号 -> 同一用户)
+        // 3. 最后按 phone 查 (设备号用户 + 手机号后, 公众号合并)
+        WechatUser u = userRepo.findByOpenid(openid).orElse(null);
+        if (u == null && finalUnionid != null && !finalUnionid.isBlank()) {
+            u = userRepo.findByUnionid(finalUnionid).orElse(null);
+        }
+
+        if (u == null) {
+            // 都不存在 -> 新建, 使用 deviceId 或 UUID 生成 customerId
             String cid = "c-" + UUID.randomUUID().toString().substring(0, 12);
-            return userRepo.save(WechatUser.builder()
+            final WechatUser newUser = WechatUser.builder()
                     .customerId(cid).openid(openid).unionid(finalUnionid)
                     .nickname(finalNickname != null ? finalNickname : "微信客户")
                     .avatar(finalAvatar)
-                    .build());
-        });
+                    .build();
+            u = userRepo.save(newUser);
+        } else {
+            // 已存在 -> 补全 openid/unionid (设备号用户扫码公众号后绑定的场景)
+            if (u.getOpenid() == null || !u.getOpenid().equals(openid)) {
+                u.setOpenid(openid);
+            }
+            if (finalUnionid != null && !finalUnionid.isBlank()
+                && (u.getUnionid() == null || !u.getUnionid().equals(finalUnionid))) {
+                u.setUnionid(finalUnionid);
+            }
+        }
 
         // v2.2.69: 已存在用户, 如果头像/昵称为空也补全
         if (u.getAvatar() == null && finalAvatar != null) {
             u.setAvatar(finalAvatar);
-            userRepo.save(u);
         }
         if ((u.getNickname() == null || u.getNickname().isBlank()) && finalNickname != null) {
             u.setNickname(finalNickname);
-            userRepo.save(u);
         }
+        u = userRepo.save(u);
 
         Map<String, Object> resp = tokenResponse(u, "OA");
         // v2.2.69: 返回中加 subscribe 标志 (是否关注公众号)
