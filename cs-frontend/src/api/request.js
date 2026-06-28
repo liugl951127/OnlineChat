@@ -37,7 +37,7 @@ service.interceptors.request.use(async config => {
       else if (url === '/auth/register' && method === 'post') result = await mockAuth.register(body)
       else if (url === '/auth/me' && method === 'get') result = await mockAuth.me()
       else if (url === '/auth/logout' && method === 'post') result = await mockAuth.logout()
-      else if (url === '/auth/silent' && method === 'get') result = await mockAuth.silent(config.params?.token)
+      else if (url === '/auth/silent-login' && method === 'post') result = await mockAuth.silent(body?.token)
       else if (url.endsWith('/authorize')) {
         return mockAuth.oauthAuthorize(url.split('/')[2], config.params?.redirect_uri)
       }

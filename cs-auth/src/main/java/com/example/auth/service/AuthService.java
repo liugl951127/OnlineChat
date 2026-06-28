@@ -53,13 +53,16 @@ public class AuthService {
     // ==================== 客户：静默 / OAuth ====================
 
     @Transactional
-    public Map<String, Object> silentLogin(String tempCode) {
-        if (tempCode == null || tempCode.isBlank()) {
-            tempCode = "auto-" + UUID.randomUUID().toString().substring(0, 8);
+    public Map<String, Object> silentLogin(String deviceId) {
+        // v2.2.68: 用 deviceId 切丁客户唯一标识 (同一设备 -> 同一 customerId)
+        if (deviceId == null || deviceId.isBlank()) {
+            deviceId = "auto-" + UUID.randomUUID().toString().substring(0, 8);
         }
-        String openid = "oa-silent-" + tempCode;
+        String openid = "dev-" + deviceId;
         WechatUser u = userRepo.findByOpenid(openid).orElseGet(() -> {
-            String cid = "c-" + UUID.randomUUID().toString().substring(0, 12);
+            // v2.2.68: customerId 与 deviceId 关联 (便于以后手工追踪)
+            String cid = "c-" + deviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, deviceId.length()));
+            if (cid.length() < 3) cid = "c-" + UUID.randomUUID().toString().substring(0, 12);
             return userRepo.save(WechatUser.builder()
                     .customerId(cid).openid(openid).nickname("访客").build());
         });

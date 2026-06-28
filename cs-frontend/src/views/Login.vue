@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { auth } from '@/api'
 import { useUserStore } from '@/store/user'
-import { maskMobile } from '@/utils'
+import { maskMobile, getDeviceId } from '@/utils'
 import { isMockEnabled } from '@/api/mock'
 
 const isMockMode = ref(isMockEnabled())
@@ -80,12 +80,14 @@ async function loginByPhone() {
   }
 }
 
-// v2.2.66: 访客登录 (静默分配客服)
+// v2.2.68: 访客登录 (静默分配客服, 用设备号切丁客户唯一标识)
 async function silentLogin() {
   submitting.value = true
   try {
     // 后端端点: POST /auth/silent-login
-    const { data } = await auth.silent({})
+    // v2.2.68: 传 deviceId 作为客户唯一标识 (localStorage 持久化)
+    const deviceId = getDeviceId()
+    const { data } = await auth.silent({ deviceId })
     handleLoginSuccess(data)
     ElMessage.success('以访客身份进入，系统已为您分配客服')
   } catch (e) {

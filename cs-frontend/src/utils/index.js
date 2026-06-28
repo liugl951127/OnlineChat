@@ -93,3 +93,36 @@ export const storage = {
   set(k, v) { localStorage.setItem(k, JSON.stringify(v)) },
   remove(k) { localStorage.removeItem(k) }
 }
+// ============= v2.2.68: 设备号 (访客登录唯一标识) =============
+
+const DEVICE_ID_KEY = 'cs_device_id'
+
+/**
+ * 获取或生成设备号 (localStorage 持久化, 同一浏览器不变)
+ * 优先级: localStorage > 生成新 UUID
+ */
+export function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_ID_KEY)
+  if (!id) {
+    // 生成 UUID v4 (用 crypto.randomUUID 优先)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      id = crypto.randomUUID()
+    } else {
+      // 兜底: 简易 UUID
+      id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }
+    localStorage.setItem(DEVICE_ID_KEY, id)
+  }
+  return id
+}
+
+/**
+ * 清除设备号 (登出时调用, 模拟换设备)
+ */
+export function clearDeviceId() {
+  localStorage.removeItem(DEVICE_ID_KEY)
+}

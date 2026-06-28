@@ -114,10 +114,18 @@ export const mockAuth = {
     return ok({ username, role: 'CUSTOMER' })
   },
 
-  /** 静默登录（URL ?token=xxx） */
-  silent: (token) => {
-    if (!token) return fail(401, '无 token')
-    return ok({ token, channel: 'MOCK' })
+  /** v2.2.68: 静默登录 (用 deviceId 作为唯一标识) */
+  silent: (deviceId) => {
+    if (!deviceId) return fail(401, '无 deviceId')
+    // mock 模式下生成一个 fake token (payload 含 deviceId)
+    const fakeToken = 'mock.' + btoa(JSON.stringify({
+      userId: 'c-' + deviceId.substring(0, 8),
+      displayName: '访客',
+      role: 'CUSTOMER',
+      channel: 'MOCK',
+      deviceId
+    })) + '.sig'
+    return ok({ token: fakeToken, customerId: 'c-' + deviceId.substring(0, 8), nickname: '访客', role: 'CUSTOMER', channel: 'MOCK' })
   },
 
   /** 取当前用户 */
