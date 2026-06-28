@@ -98,6 +98,11 @@ cs:
     dir: ./data/upload/
     url-prefix: /upload/
     max-size: 20971520
+  replay:
+    # v2.2.78: 视频回溯存储
+    storage-dir: ${CS_REPLAY_DIR:/var/data/replay}
+    public-base: ${CS_REPLAY_BASE:http://127.0.0.1:9001/im/replay/video}
+    framerate: 2
 
 wechat:
   oa:

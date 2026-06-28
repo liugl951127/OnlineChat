@@ -205,6 +205,49 @@ CREATE TABLE chat_session (
     INDEX idx_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ChatSession';
 
+-- ReplayFrame 会话帧索引 (v2.2.78 视频回溯系统)
+DROP TABLE IF EXISTS replay_frame;
+CREATE TABLE replay_frame (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    session_id            BIGINT NOT NULL COMMENT '关联 chat_session.id',
+    message_id            BIGINT NULL COMMENT '关联 chat_message.id (可选, 无消息时为空)',
+    seq                   INT NOT NULL COMMENT '帧序号, 从 0 开始递增',
+    captured_at           DATETIME(3) NOT NULL COMMENT '快照时间 (毫秒精度)',
+    offset_ms             BIGINT NOT NULL COMMENT '相对会话起始偏移 (毫秒)',
+    frame_kind            VARCHAR(32) NOT NULL COMMENT 'SCREENSHOT/PAGE/INTERACTION/MESSAGE',
+    image_url             VARCHAR(512) NULL COMMENT '服务端存儲路径 / CDN URL',
+    image_data            LONGTEXT NULL COMMENT 'base64 图片 (服务端未上云时存本地)',
+    width                 INT NULL,
+    height                INT NULL,
+    duration_ms           INT NULL COMMENT '该帧持续时长 (毫秒, 默认 5000)',
+    metadata              TEXT NULL COMMENT 'JSON 元数据: {scrollY, click, hover, msgSnippet}',
+    uploaded_by           VARCHAR(64) NULL COMMENT '上传者: customer/agent',
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_session (session_id),
+    INDEX idx_session_seq (session_id, seq),
+    INDEX idx_message (message_id),
+    INDEX idx_captured (captured_at),
+    INDEX idx_kind (frame_kind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ReplayFrame 会话帧快照';
+
+-- ReplayJob 合成任务 (v2.2.78)
+DROP TABLE IF EXISTS replay_job;
+CREATE TABLE replay_job (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    session_id            BIGINT NOT NULL COMMENT '关联 chat_session.id',
+    status                VARCHAR(32) NOT NULL COMMENT 'PENDING/RUNNING/SUCCESS/FAILED',
+    frame_count           INT NOT NULL DEFAULT 0,
+    video_url             VARCHAR(512) NULL,
+    duration_ms           BIGINT NULL,
+    error_message         TEXT NULL,
+    started_at            DATETIME NULL,
+    finished_at           DATETIME NULL,
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_session (session_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ReplayJob 视频合成任务';
+
 -- ComplianceCheck（自动生成）
 DROP TABLE IF EXISTS compliance_check;
 CREATE TABLE compliance_check (

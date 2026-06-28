@@ -1,9 +1,10 @@
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { im, robot, ticket, faq as faqApi, replay, kyc as kycApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { formatTime, safeText, debounce } from '@/utils'
+import { useReplayRecorder } from '@/composables/useReplayRecorder'  // v2.2.78
 import KnowledgeBase from '@/components/KnowledgeBase.vue'
 import TicketPanel from '@/components/TicketPanel.vue'
 import ReplayPanel from '@/components/ReplayPanel.vue'
@@ -71,9 +72,35 @@ onMounted(async () => {
   await connectWS()
   await loadHistory()
   await loadOffline()
+  // v2.2.78: 启动会话回溯 Recorder (定时截图)
+  if (sessionId.value) {
+    recorder.start()
+  }
 })
 
-onUnmounted(() => disconnectWS())
+onUnmounted(() => {
+  disconnectWS()
+  // v2.2.78: 退出页面时停止 + 触发合成
+  if (recorder.isRecording.value) {
+    recorder.finish()
+  }
+})
+
+// v2.2.78: 会话回溯 Recorder
+const recorder = useReplayRecorder({
+  sessionId: sessionId.value,
+  intervalMs: 5000,
+  uploadedBy: 'customer',
+  targetDom: null,
+  onError: (e) => console.warn('[Replay Recorder]', e)
+})
+
+// 同步 sessionId 到 recorder (当 loadSession 更新时)
+watch(sessionId, (newId) => {
+  if (newId && !recorder.isRecording.value) {
+    recorder.start()
+  }
+})
 
 // ============ WebSocket（实时聊天） ============
 async function connectWS() {

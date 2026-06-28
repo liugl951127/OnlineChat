@@ -3,9 +3,11 @@ package com.example.im.service;
 import com.example.common.ApiException;
 import com.example.im.domain.ChatMessage;
 import com.example.im.domain.ChatSession;
+import com.example.im.domain.ReplayFrame;
 import com.example.im.repo.ChatMessageMapper;
 import com.example.im.repo.ChatMessageRepo;
 import com.example.im.repo.ChatSessionMapper;
+import com.example.im.repo.ReplayFrameRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,6 +48,9 @@ public class VideoReplayService {
 
     /** 会话 Mapper */
     private final ChatSessionMapper sessionMapper;
+
+    /** 帧仓储 (v2.2.78) */
+    private final ReplayFrameRepo frameRepo;
 
     /**
      * 生成会话视频回溯数据
@@ -102,6 +107,23 @@ public class VideoReplayService {
         replay.put("frames", frames);
         // 如果会话已绑定回放视频 URL，直接返回
         replay.put("videoUrl", session.getVideoReplayUrl());
+
+        // v2.2.78: 附带会话帧快照 (用于时间轴导航)
+        List<ReplayFrame> replayFrames = frameRepo.findBySessionOrderBySeq(sessionId);
+        List<Map<String, Object>> timeline = new java.util.ArrayList<>();
+        for (ReplayFrame rf : replayFrames) {
+            Map<String, Object> t = new HashMap<>();
+            t.put("seq", rf.getSeq());
+            t.put("offsetMs", rf.getOffsetMs());
+            t.put("frameKind", rf.getFrameKind());
+            t.put("messageId", rf.getMessageId());
+            t.put("imageUrl", rf.getImageUrl());
+            t.put("metadata", rf.getMetadata());
+            t.put("durationMs", rf.getDurationMs());
+            timeline.add(t);
+        }
+        replay.put("timeline", timeline);
+        replay.put("replayFrameCount", replayFrames.size());
 
         return replay;
     }

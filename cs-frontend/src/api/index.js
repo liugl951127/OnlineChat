@@ -116,7 +116,14 @@ export const faq = {
 export const replay = {
   get: sessionId => request.get(`/im/replay/${sessionId}`),
   setVideoUrl: (sessionId, videoUrl) => request.post(`/im/replay/${sessionId}/video-url`, { videoUrl }),
-  setFrameUrl: (messageId, videoUrl) => request.post(`/im/replay/message/${messageId}/frame-url`, { videoUrl })
+  setFrameUrl: (messageId, videoUrl) => request.post(`/im/replay/message/${messageId}/frame-url`, { videoUrl }),
+  // v2.2.78: 帧上传 + 合成
+  capture: data => request.post('/im/replay/capture', data),
+  captureBatch: data => request.post('/im/replay/capture-batch', data),
+  finish: sessionId => request.post(`/im/replay/${sessionId}/finish`),
+  job: sessionId => request.get(`/im/replay/${sessionId}/job`),
+  frames: sessionId => request.get(`/im/replay/${sessionId}/frames`),
+  meta: sessionId => request.get(`/im/replay/${sessionId}/meta`)
 }
 
 // ============= KYC（v2.0.0） =============

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.ReplayFrameMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.im.domain.ReplayFrame">
+        <id     property="id"          column="id"/>
+        <result property="sessionId"   column="session_id"/>
+        <result property="messageId"   column="message_id"/>
+        <result property="seq"         column="seq"/>
+        <result property="capturedAt"  column="captured_at"/>
+        <result property="offsetMs"    column="offset_ms"/>
+        <result property="frameKind"   column="frame_kind"/>
+        <result property="imageUrl"    column="image_url"/>
+        <result property="width"       column="width"/>
+        <result property="height"      column="height"/>
+        <result property="durationMs"  column="duration_ms"/>
+        <result property="metadata"    column="metadata"/>
+        <result property="uploadedBy"  column="uploaded_by"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <select id="findBySessionOrderBySeq" resultMap="BaseResultMap">
+        SELECT id, session_id, message_id, seq, captured_at, offset_ms, frame_kind,
+               image_url, width, height, duration_ms, metadata, uploaded_by, created_at
+        FROM replay_frame
+        WHERE session_id = #{sessionId}
+        ORDER BY seq ASC
+    </select>
+
+    <select id="findBySessionAndKind" resultMap="BaseResultMap">
+        SELECT id, session_id, message_id, seq, captured_at, offset_ms, frame_kind,
+               image_url, width, height, duration_ms, metadata, uploaded_by, created_at
+        FROM replay_frame
+        WHERE session_id = #{sessionId} AND frame_kind = #{kind}
+        ORDER BY seq ASC
+    </select>
+
+    <select id="countBySession" resultType="int">
+        SELECT COUNT(*) FROM replay_frame WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="maxSeqBySession" resultType="java.lang.Integer">
+        SELECT COALESCE(MAX(seq), -1) FROM replay_frame WHERE session_id = #{sessionId}
+    </select>
+
+</mapper>
