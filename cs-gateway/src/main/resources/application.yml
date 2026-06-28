@@ -12,14 +12,11 @@ spring:
     web-application-type: reactive
   # v2.2.60: 不使用 spring.config.import, 改为 spring.cloud.nacos.config 属性配置
   #  原因: nacos-config 自动拉取 {spring.application.name}-{profile}.yaml
-  # v2.2.62: spring.config.import 作为启动参数覆盖
-  #  默认从环境变量 SPRING_CONFIG_IMPORT 读, 为空则不额外 import
-  #  启动示例:
-  #    java -jar cs-gateway.jar --spring.config.import=optional:nacos:cs-gateway.yaml
-  #  或:
-  #    SPRING_CONFIG_IMPORT=optional:nacos:cs-gateway.yaml java -jar cs-gateway.jar
-  config:
-    import: ${SPRING_CONFIG_IMPORT:}
+  # v2.2.63: 不使用 spring.config.import (避免空值报错)
+  #  Spring Cloud Alibaba nacos-config 通过 spring.cloud.nacos.config 自动拉取配置
+  #  Data ID 规则: ${spring.application.name}-${spring.profiles.active}.${file-extension}
+  #  示例: cs-gateway + prod + yaml → cs-gateway-prod.yaml
+  #  启动时不需要显式 spring.config.import
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:
