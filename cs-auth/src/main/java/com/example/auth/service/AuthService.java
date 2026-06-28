@@ -55,13 +55,17 @@ public class AuthService {
     @Transactional
     public Map<String, Object> silentLogin(String deviceId) {
         // v2.2.68: 用 deviceId 切丁客户唯一标识 (同一设备 -> 同一 customerId)
+        // v2.2.73: final 变量用于 lambda (避免 effectively final 错误)
+        final String finalDeviceId;
         if (deviceId == null || deviceId.isBlank()) {
-            deviceId = "auto-" + UUID.randomUUID().toString().substring(0, 8);
+            finalDeviceId = "auto-" + UUID.randomUUID().toString().substring(0, 8);
+        } else {
+            finalDeviceId = deviceId;
         }
-        String openid = "dev-" + deviceId;
+        String openid = "dev-" + finalDeviceId;
         WechatUser u = userRepo.findByOpenid(openid).orElseGet(() -> {
             // v2.2.68: customerId 与 deviceId 关联 (便于以后手工追踪)
-            String cid = "c-" + deviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, deviceId.length()));
+            String cid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.length()));
             if (cid.length() < 3) cid = "c-" + UUID.randomUUID().toString().substring(0, 12);
             return userRepo.save(WechatUser.builder()
                     .customerId(cid).openid(openid).nickname("访客").build());
