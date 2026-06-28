@@ -18,6 +18,9 @@ spring:
         enabled: ${NACOS_DISCOVERY_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:public}
+        # v2.2.59: nacos 鉴权 (默认 nacos/nacos, 生产改 ${NACOS_USER}:${NACOS_PASSWORD})
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
         register-enabled: true
         heartbeat-interval: 5000
         heart-beat-timeout: 15000
