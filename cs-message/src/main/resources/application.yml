@@ -6,11 +6,6 @@ spring:
     name: cs-message
   profiles:
     active: prod
-  # v2.2.50: spring.config.import 简写 (省略 .yaml 后缀)
-  config:
-    import:
-      # - "optional:nacos:cs-message"   # 基础配置 (v2.2.50 注释，仅用 profile 版本)
-      - "optional:nacos:cs-message-${spring.profiles.active}"
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:
@@ -24,6 +19,15 @@ spring:
         register-enabled: true
         heartbeat-interval: 5000
         heart-beat-timeout: 15000
+      # v2.2.60: nacos-config 属性配置 (代替 spring.config.import)
+      # 自动拉取 cs-message-{spring.profiles.active}.yaml
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        file-extension: yaml
 
   # Redis（在线状态 + 离线消息）
   data:
