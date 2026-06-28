@@ -31,13 +31,20 @@ public class CsrfFilter implements Filter {
     private static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
     private static final Set<String> WHITELIST_PATHS = Set.of(
         "/auth/login", "/auth/login-phone", "/auth/register",
-        "/auth/admin/login", "/auth/silent",
+        "/auth/admin/login", "/auth/agent/login",
+        // v2.2.85: 实际路径是 silent-login (不是 silent)
+        "/auth/silent-login",
+        "/auth/sms/send", "/auth/refresh", "/auth/logout",
+        "/auth/admin/revoke-user", "/auth/admin/reset-agent-password",
         "/auth/wx-mini/login", "/auth/wx-oa/h5-entry",
         "/auth/wechat-oa/callback", "/auth/wechat-oa/callback-json",
         "/auth/wechat-work/callback", "/auth/github/callback",
         "/auth/google/callback",
         // v2.2.80: subscribe-check + qrcode-for-subscribe
-        "/auth/wechat-oa/subscribe-check", "/auth/wechat-oa/qrcode-for-subscribe"
+        "/auth/wechat-oa/subscribe-check", "/auth/wechat-oa/qrcode-for-subscribe",
+        // v2.2.28: 微信推送端点 (微信服务器 POST, 无 CSRF)
+        "/auth/wechat-oa/customer-message", "/auth/wechat-oa/template-send",
+        "/auth/wx-mini/subscribe-send"
     );
 
     @Override

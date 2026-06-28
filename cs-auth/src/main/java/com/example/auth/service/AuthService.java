@@ -65,7 +65,7 @@ public class AuthService {
         }
         String openid = "dev-" + finalDeviceId;
         // v2.2.75: existingCid 在 lambda 外生成, 避免 lambda 引用被重新赋值的变量
-        String existingCid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.length()));
+        String existingCid = "c-" + finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").substring(0, Math.min(12, finalDeviceId.replaceAll("[^a-zA-Z0-9]", "").length()));
         if (existingCid.length() < 3) {
             existingCid = "c-" + UUID.randomUUID().toString().substring(0, 12);
         }
