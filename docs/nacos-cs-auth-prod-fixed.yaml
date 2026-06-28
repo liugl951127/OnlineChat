@@ -1,0 +1,30 @@
+# Nacos cs-auth-prod.yaml (修复版 - 单一 spring 节点)
+spring:
+  application:
+    name: cs-auth
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+        file-extension: yaml
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        refresh-enabled: true
+        extension-configs:
+          - data-id: shared-common.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+  config:
+    import: "optional:nacos:cs-auth-prod.yaml"
+
+cs:
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-in-production-32-byte-min-length-secret}
+    ttl-ms: ${JWT_TTL_MS:86400000}
