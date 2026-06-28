@@ -16,6 +16,13 @@
         <result property="createdAt"     column="created_at"/>
     </resultMap>
 
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT id, session_id, status, frame_count, video_url, duration_ms,
+               error_message, started_at, finished_at, created_at
+        FROM replay_job
+        WHERE id = #{id}
+    </select>
+
     <select id="findBySession" resultMap="BaseResultMap">
         SELECT id, session_id, status, frame_count, video_url, duration_ms,
                error_message, started_at, finished_at, created_at
