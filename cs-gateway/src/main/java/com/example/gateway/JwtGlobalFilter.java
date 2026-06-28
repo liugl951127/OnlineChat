@@ -74,6 +74,9 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
             // ============ v2.2.85: 视频流 + 静默回调直链无需 JWT ============
             "/im/replay/video",        // 视频下载 (前端 <video> src 直链)
             "/api/im/replay/video",    // v2.2.85: /api/ 前缀
+            // ============ v2.2.86: WebSocket 握手 (token 通过 query 传) ============
+            "/ws",                     // SockJS / WebSocket 直连
+            "/api/ws",                 // v2.2.85: /api/ 前缀
             // ============ 健康检查 ============
             // ============ 健康检查 ============
             "/actuator"
