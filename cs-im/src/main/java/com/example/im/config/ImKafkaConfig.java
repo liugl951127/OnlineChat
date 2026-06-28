@@ -40,6 +40,17 @@ public class ImKafkaConfig {
         cfg.put(JsonDeserializer.TRUSTED_PACKAGES, "com.example.common.kafka");
         cfg.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
         cfg.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ChatMessageEvent.class.getName());
+
+        // v2.2.91: 调优消费者参数 (避免 rebalance + 处理超时)
+        // 默认 session.timeout.ms=45s 在网络抖动时会频繁 rebalance
+        // 默认 max.poll.interval.ms=5min 在批处理消息时会超时
+        cfg.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);        // 30s (默认 45s)
+        cfg.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000);    // 10s (默认 3s, 1/3 session)
+        cfg.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 600000);    // 10min (默认 5min)
+        cfg.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);          // 100 条/批 (默认 500, 减少单次 poll 时间)
+        cfg.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);              // 立即返回 (默认 1)
+        cfg.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);          // 最长等 500ms (默认 500)
+
         return new DefaultKafkaConsumerFactory<>(cfg);
     }
 
