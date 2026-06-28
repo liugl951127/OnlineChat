@@ -12,7 +12,7 @@ import java.util.Map;
  * 离线消息查询（前端轮询 / 上线拉取）
  */
 @RestController
-@RequestMapping("/offline")
+@RequestMapping("/message/offline")
 @RequiredArgsConstructor
 public class OfflineMessageController {
 
