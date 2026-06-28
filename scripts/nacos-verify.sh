@@ -22,6 +22,8 @@ cd "$(dirname "$0")/.."
 NACOS_HOME="${NACOS_HOME:-/tmp/nacos}"
 NACOS_PORT="${NACOS_PORT:-8848}"
 NACOS_ADDR="127.0.0.1:$NACOS_PORT"
+NACOS_USER="${NACOS_USER:-nacos}"
+NACOS_PASSWORD="${NACOS_PASSWORD:-nacos}"
 LOG_DIR="logs"
 mkdir -p $LOG_DIR
 
@@ -98,7 +100,7 @@ check_services() {
     echo
 
     # 调 nacos API 获取所有服务
-    SERVICES=$(curl -s "http://$NACOS_ADDR/nacos/v1/ns/service/list?pageNo=1&pageSize=10" 2>&1)
+    SERVICES=$(curl -s -u "${NACOS_USER}:${NACOS_PASSWORD}" "http://$NACOS_ADDR/nacos/v1/ns/service/list?pageNo=1&pageSize=10" 2>&1)
     echo "Nacos 已注册服务列表:"
     echo "$SERVICES" | python3 -c "
 import sys, json
