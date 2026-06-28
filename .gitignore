@@ -33,4 +33,4 @@ cs-frontend/dist/
 
 # Misc
 *.bak
-*.tmp
+*.tmpdump.rdb
