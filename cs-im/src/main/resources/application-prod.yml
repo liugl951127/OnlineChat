@@ -11,6 +11,10 @@ server:
 spring:
   application:
     name: cs-im
+  # v2.2.70: prod profile 必须显式声明 spring.config.import
+  #  (prod profile 启动时 application-prod.yml 覆盖主配置)
+  config:
+    import: "optional:nacos:cs-im-prod.yaml"
   cloud:
     nacos:
       discovery:

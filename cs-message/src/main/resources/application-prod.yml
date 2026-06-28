@@ -8,6 +8,9 @@ server:
 spring:
   application:
     name: cs-message
+  # v2.2.70: prod profile 必须显式声明 spring.config.import
+  config:
+    import: "optional:nacos:cs-message-prod.yaml"
   cloud:
     nacos:
       discovery:

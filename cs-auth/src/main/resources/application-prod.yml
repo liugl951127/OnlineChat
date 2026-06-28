@@ -10,6 +10,11 @@ server:
 spring:
   application:
     name: cs-auth
+  # v2.2.70: prod profile 必须显式声明 spring.config.import
+  #  (profile 启动时 application-prod.yml 覆盖主配置, 不然会报
+  #   "No spring.config.import property has been defined")
+  config:
+    import: "optional:nacos:cs-auth-prod.yaml"
   cloud:
     nacos:
       discovery:
