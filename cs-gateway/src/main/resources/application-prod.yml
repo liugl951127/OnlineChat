@@ -1,12 +1,19 @@
-# 生产环境配置（prod profile）
+# 生产环境配置（prod profile） (v2.2.61)
 #
-# 用法：java -jar cs-gateway-1.7.1.jar --spring.profiles.active=prod
+# 用法：java -jar cs-gateway.jar --spring.profiles.active=prod
 #
-# 关键差异（vs dev）：
-# 1. routes 用 lb:// 服务名（通过 Nacos discovery 负载均衡）
-# 2. Redis pool 增大
-# 3. 启用 actuator prometheus + 健康检查详细信息
-# 4. 关闭 csrf 模拟，开启真实 OAuth
+# 关键差异（vs application.yml）：
+#   1. nacos.namespace 默认 prod（隔离生产配置）
+#   2. routes 用 lb:// 服务名（通过 nacos discovery 负载均衡）
+#   3. Redis pool 增大（生产高并发）
+#   4. Tomcat max-threads 调高
+#   5. 启用 actuator prometheus + 健康检查详细信息
+#   6. JWT secret 必须显式设置（无默认值）
+#
+# 启动命令：
+#   NACOS_USER=admin NACOS_PASSWORD=${MY_SECRET} \
+#   JWT_SECRET=${JWT_SECRET} \
+#   java -jar cs-gateway.jar --spring.profiles.active=prod
 
 server:
   port: 9000
@@ -22,10 +29,9 @@ spring:
   application:
     name: cs-gateway
   main:
+    # cs-gateway 用 spring-cloud-starter-gateway（WebFlux 响应式）
     web-application-type: reactive
-  # 生产可去掉 optional:（强制要求 nacos 可达）
-  # config:
-  #   import: "nacos:cs-gateway.yml"
+
   cloud:
     nacos:
       discovery:
@@ -34,55 +40,63 @@ spring:
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
-        password: ${NACOS_PASS:nacos}
+        password: ${NACOS_PASSWORD:nacos}    # v2.2.61: 修正 NACOS_PASS → NACOS_PASSWORD
+        register-enabled: true
+        heartbeat-interval: 5000
+        heart-beat-timeout: 15000
+      # v2.2.60: nacos-config 属性配置（代替 spring.config.import）
       config:
         enabled: ${NACOS_CONFIG_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         file-extension: yaml
         namespace: ${NACOS_NAMESPACE:prod}
         username: ${NACOS_USER:nacos}
-        password: ${NACOS_PASS:nacos}
-    gateway:
-      # 生产用 http://127.0.0.1:9001（通过 Nacos 服务发现 + Ribbon 负载均衡）
-      routes:
-        - id: cs-auth
-          uri: lb://cs-auth
-          predicates:
-            - Path=/auth/**,/auth/actuator/**,/api/auth/**
-        - id: cs-robot
-          uri: lb://cs-robot
-          predicates:
-            - Path=/robot/**
-        - id: cs-im
-          uri: lb://cs-im
-          predicates:
-            - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
-        - id: cs-trade
-          uri: lb://cs-trade
-          predicates:
-            - Path=/trade/**
-        # K8s 探针
-        - id: auth-health
-          uri: lb://cs-auth
-          predicates:
-            - Path=/actuator/auth/**
-          filters:
-            - StripPrefix=1
-        - id: im-health
-          uri: lb://cs-im
-          predicates:
-            - Path=/actuator/im/**
-          filters:
-            - StripPrefix=1
-        - id: message-health
-          uri: lb://cs-message
-          predicates:
-            - Path=/actuator/message/**,/message/actuator/**
-          filters:
-            - StripPrefix=1
-      # 限流（生产级）
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+        password: ${NACOS_PASSWORD:nacos}    # v2.2.61: 修正
+      # v2.2.61: gateway 路由全部用 lb://（通过 nacos 服务发现 + spring-cloud-loadbalancer）
+      gateway:
+        routes:
+          - id: cs-auth
+            uri: lb://cs-auth
+            predicates:
+              - Path=/auth/**,/auth/actuator/**,/api/auth/**
+          - id: cs-robot
+            uri: lb://cs-robot
+            predicates:
+              - Path=/robot/**
+          - id: cs-im
+            uri: lb://cs-im
+            predicates:
+              - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
+          - id: cs-trade
+            uri: lb://cs-trade
+            predicates:
+              - Path=/trade/**
+          - id: cs-message                                       # v2.2.61: 新增 message 路由
+            uri: lb://cs-message
+            predicates:
+              - Path=/message/**,/api/message/**
+          # K8s 探针（liveness/readiness/Prometheus）
+          - id: auth-health
+            uri: lb://cs-auth
+            predicates:
+              - Path=/actuator/auth/**
+            filters:
+              - StripPrefix=1
+          - id: im-health
+            uri: lb://cs-im
+            predicates:
+              - Path=/actuator/im/**
+            filters:
+              - StripPrefix=1
+          - id: message-health
+            uri: lb://cs-message
+            predicates:
+              - Path=/actuator/message/**,/message/actuator/**
+            filters:
+              - StripPrefix=1
+        # 生产级限流：去除重复的 CORS header
+        default-filters:
+          - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
 
   data:
     redis:
@@ -101,7 +115,8 @@ spring:
 
 cs:
   jwt:
-    secret: ${JWT_SECRET:please-change-this-in-production-32-byte-min-length-secret}
+    # 生产必须显式设置 secret，无默认值（避免弱密钥）
+    secret: ${JWT_SECRET:?JWT_SECRET must be set in production}
     ttl-ms: ${JWT_TTL_MS:86400000}
 
 logging:

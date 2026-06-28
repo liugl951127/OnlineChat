@@ -17,10 +17,18 @@ spring:
         enabled: ${NACOS_DISCOVERY_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        register-enabled: true
+        heartbeat-interval: 5000
+        heart-beat-timeout: 15000
       config:
         enabled: ${NACOS_CONFIG_ENABLED:true}
         server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:prod}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        file-extension: yaml
 
   datasource:
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cs_im}?useUnicode=true&characterEncoding=utf8&useSSL=${DB_USE_SSL:true}&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
