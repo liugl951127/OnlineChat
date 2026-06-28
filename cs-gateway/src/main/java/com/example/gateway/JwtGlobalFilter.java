@@ -71,6 +71,10 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
             "/auth/wechat-oa/customer-message",
             "/auth/wechat-oa/template-send",
             "/auth/wx-mini/subscribe-send",
+            // ============ v2.2.85: 视频流 + 静默回调直链无需 JWT ============
+            "/im/replay/video",        // 视频下载 (前端 <video> src 直链)
+            "/api/im/replay/video",    // v2.2.85: /api/ 前缀
+            // ============ 健康检查 ============
             // ============ 健康检查 ============
             "/actuator"
     );
@@ -86,11 +90,20 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
         // 健康检查（K8s 探针）一律放行
         if (path.startsWith("/actuator")) return chain.filter(exchange);
 
-        // 白名单：精确匹配（开头完全一致）
+        // 白名单：精确匹配（开头完全一致 + v2.2.85: 兼容 /api/ 前缀）
+        //  实际: nginx 通常用 /api/*, 但 /api/* StripPrefix 后是 /auth/* /im/* /message/*
+        //  白名单里只配原始路径, gateway 转发时自动剥前缀
+        //  这里直接 path 检查 + 去掉 /api 前缀再检查 (双保险)
+        String checkPath = path.startsWith("/api/") ? path.substring(4) : path;
         for (String w : WHITE_LIST) {
-            if (path.equals(w) || path.startsWith(w + "/") || path.startsWith(w + "?")) {
+            if (path.equals(w) || path.startsWith(w + "/") || path.startsWith(w + "?")
+                    || checkPath.equals(w) || checkPath.startsWith(w + "/") || checkPath.startsWith(w + "?")) {
                 return chain.filter(exchange);
             }
+        }
+        // v2.2.85: /api/auth/* 整体放行 (auth 路径都是白名单, csrf 自己处理)
+        if (path.startsWith("/api/auth/") || checkPath.startsWith("/auth/")) {
+            return chain.filter(exchange);
         }
 
         String token = extractToken(req);
@@ -111,6 +124,7 @@ public class JwtGlobalFilter implements GlobalFilter, Ordered {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
+        
 
         ServerHttpRequest mutated = req.mutate()
                 .header("X-User-Role", str(claims.get("role")))

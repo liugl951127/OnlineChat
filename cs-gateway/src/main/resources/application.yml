@@ -59,7 +59,14 @@ spring:
         - id: cs-auth
           uri: lb://cs-auth
           predicates:
-            - Path=/auth/**,/auth/actuator/**,/api/auth/**
+            - Path=/auth/**,/auth/actuator/**
+        # v2.2.85: /api/auth/** StripPrefix=1
+        - id: cs-auth-api
+          uri: lb://cs-auth
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
         - id: cs-robot
           uri: lb://cs-robot
           predicates:
@@ -67,7 +74,14 @@ spring:
         - id: cs-im
           uri: lb://cs-im
           predicates:
-            - Path=/im/**,/ws/**,/api/im/**,/api/ws/**
+            - Path=/im/**,/ws/**
+        # v2.2.85: /api/im/** StripPrefix=1
+        - id: cs-im-api
+          uri: lb://cs-im
+          predicates:
+            - Path=/api/im/**,/api/ws/**
+          filters:
+            - StripPrefix=1
         - id: cs-trade
           uri: lb://cs-trade
           predicates:
@@ -75,7 +89,13 @@ spring:
         - id: cs-message
           uri: lb://cs-message
           predicates:
-            - Path=/message/**,/api/message/**
+            - Path=/message/**
+        - id: cs-message-api
+          uri: lb://cs-message
+          predicates:
+            - Path=/api/message/**
+          filters:
+            - StripPrefix=1
         # Actuator 健康检查路径转发（供 K8s liveness/readiness 探针 + Prometheus 抓取）
         - id: auth-health
           uri: lb://cs-auth
@@ -102,9 +122,15 @@ spring:
           lower-case-service-id: true
 
 cs:
-  jwt:
-    secret: ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK
-    ttl-ms: 86400000
+  # v2.2.85: 静态服务发现 fallback (无 nacos 时 lb:// 仍能路由)
+  # v2.2.85: 静态服务发现 fallback
+  static-discovery:
+    enabled: ${STATIC_DISCOVERY_ENABLED:false}
+    services:
+      cs-auth:    ${CS_AUTH_ADDR:127.0.0.1:9001}
+      cs-im:      ${CS_IM_ADDR:127.0.0.1:9003}
+      cs-message: ${CS_MESSAGE_ADDR:127.0.0.1:9005}
+      cs-robot:   ${CS_ROBOT_ADDR:127.0.0.1:9006}
 
 logging:
   level:

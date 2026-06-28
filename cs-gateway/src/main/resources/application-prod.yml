@@ -123,7 +123,7 @@ cs:
     #  生产部署必须显式设 JWT_SECRET 环境变量
     #  默认 secret 仅用于"凭证丢失启动仍能成功"场景
     #  (启用后会启动警告 "JWT_SECRET 使用默认值, 生产不安全")
-    secret: ${JWT_SECRET:CHANGE_ME_IN_PRODUCTION_USE_32_BYTE_SECRET}
+    secret: ${JWT_SECRET:ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK}
     ttl-ms: ${JWT_TTL_MS:86400000}
 
 logging:

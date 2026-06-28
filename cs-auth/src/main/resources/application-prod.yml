@@ -97,7 +97,7 @@ oauth:
 # AES 加密
 cs:
   jwt:
-    secret: ${JWT_SECRET:please-change-this-in-production-32-byte-min-length-secret}
+    secret: ${JWT_SECRET:ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK}
     ttl-ms: ${JWT_TTL_MS:86400000}
   phone:
     secret: ${PHONE_AES_SECRET:please-change-this-32byte-aes-secret}
