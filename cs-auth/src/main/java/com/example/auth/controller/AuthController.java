@@ -558,7 +558,8 @@ public class AuthController {
         return "http://127.0.0.1:9001" + defaultPath;
     }
 
-    @Data public static class SilentReq { private String tempCode; }
+    /** v2.2.68: 访客登录请求体 (用 deviceId 作为客户唯一标识) */
+    @Data public static class SilentReq { private String deviceId; }
     @Data public static class LoginReq { private String username; private String password; }
     @Data public static class PhoneReq { private String phone; }
     @Data public static class PhoneLoginReq { private String phone; private String code; }

@@ -71,15 +71,48 @@ public class AuthService {
 
     @Transactional
     public Map<String, Object> oaCallback(String code) {
+        // v2.2.69: 第二步 exchangeCode 拿 openid + access_token
         Map<String, String> info = oaClient.exchangeCode(code);
         String openid = info.get("openid");
+        String accessToken = info.get("access_token");
+        String unionid = info.get("unionid");
+
+        // v2.2.69: 第三步 fetchUserInfo 拉详细资料 (已关注才返回, 未关注需重新授权)
+        Map<String, String> userInfo = null;
+        if (accessToken != null && !accessToken.isBlank()) {
+            userInfo = oaClient.fetchUserInfo(accessToken, openid);
+        }
+        if (userInfo != null) {
+            unionid = userInfo.getOrDefault("unionid", unionid);
+        }
+
+        String finalUnionid = unionid;
+        String finalNickname = userInfo != null ? userInfo.get("nickname") : null;
+        String finalAvatar = userInfo != null ? userInfo.get("avatar") : null;
         WechatUser u = userRepo.findByOpenid(openid).orElseGet(() -> {
+            // v2.2.69: 新建时用 userInfo 的资料 (昵称/头像/unionid)
             String cid = "c-" + UUID.randomUUID().toString().substring(0, 12);
             return userRepo.save(WechatUser.builder()
-                    .customerId(cid).openid(openid).unionid(info.get("unionid"))
-                    .nickname(info.getOrDefault("nickname", "客户")).build());
+                    .customerId(cid).openid(openid).unionid(finalUnionid)
+                    .nickname(finalNickname != null ? finalNickname : "微信客户")
+                    .avatar(finalAvatar)
+                    .build());
         });
-        return tokenResponse(u, "OA");
+
+        // v2.2.69: 已存在用户, 如果头像/昵称为空也补全
+        if (u.getAvatar() == null && finalAvatar != null) {
+            u.setAvatar(finalAvatar);
+            userRepo.save(u);
+        }
+        if ((u.getNickname() == null || u.getNickname().isBlank()) && finalNickname != null) {
+            u.setNickname(finalNickname);
+            userRepo.save(u);
+        }
+
+        Map<String, Object> resp = tokenResponse(u, "OA");
+        // v2.2.69: 返回中加 subscribe 标志 (是否关注公众号)
+        resp.put("subscribed", userInfo != null);
+        return resp;
     }
 
     @Transactional

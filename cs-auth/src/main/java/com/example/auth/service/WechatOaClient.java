@@ -85,6 +85,12 @@ public class WechatOaClient {
             r.put("access_token", "mock-token");
             r.put("nickname", "客户" + code.substring(0, Math.min(4, code.length())));
             r.put("avatar", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + code);
+            r.put("phone", "");
+            r.put("country", "CN");
+            r.put("province", "Beijing");
+            r.put("city", "Beijing");
+            r.put("sex", "1");
+            r.put("subscribe", "1");     // v2.2.69: 模拟已关注
             return r;
         }
         String url = "https://api.weixin.qq.com/sns/oauth2/access_token"
@@ -94,17 +100,67 @@ public class WechatOaClient {
                 + "&grant_type=authorization_code";
         try {
             JsonNode n = json.readTree(http.getForObject(url, String.class));
-            return Map.of(
-                    "openid", str(n, "openid"),
-                    "unionid", str(n, "unionid"),
-                    "access_token", str(n, "access_token")
-            );
+            Map<String, String> r = new HashMap<>();
+            r.put("openid", str(n, "openid"));
+            r.put("unionid", str(n, "unionid"));
+            r.put("access_token", str(n, "access_token"));
+            r.put("refresh_token", str(n, "refresh_token"));
+            r.put("scope", str(n, "scope"));
+            r.put("expires_in", str(n, "expires_in"));
+            return r;
         } catch (Exception e) {
             log.error("[WechatOA] exchange failed", e);
             throw new RuntimeException("微信授权失败: " + e.getMessage());
         }
     }
 
-    private static String str(JsonNode n, String k) { return n.has(k) ? n.get(k).asText() : ""; }
+    /**
+     * 第三步：用 access_token + openid 拉取用户详细资料
+     * <p>仅 snsapi_userinfo scope 可用。返回 nickname/sex/province/city/country/avatar 等。
+     * <p>如果用户未关注公众号，接口会返回 errmsg=USER NOT SUBSCRIBED。
+     *
+     * <p>v2.2.69: 如果已关注, 直接拉取资料; 未关注则需走弹窗授权后再调.
+     */
+    public Map<String, String> fetchUserInfo(String accessToken, String openid) {
+        if (mock) {
+            log.info("[WechatOA-MOCK] fetchUserInfo openid={}", openid);
+            Map<String, String> r = new HashMap<>();
+            r.put("openid", openid);
+            r.put("nickname", "微信用户" + openid.substring(Math.max(0, openid.length() - 4)));
+            r.put("sex", "1");
+            r.put("province", "Beijing");
+            r.put("city", "Beijing");
+            r.put("country", "CN");
+            r.put("avatar", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + openid);
+            r.put("unionid", "union-mock-" + openid);
+            return r;
+        }
+        String url = "https://api.weixin.qq.com/sns/userinfo"
+                + "?access_token=" + url(accessToken)
+                + "&openid=" + url(openid)
+                + "&lang=zh_CN";
+        try {
+            JsonNode n = json.readTree(http.getForObject(url, String.class));
+            if (n.has("errcode") && n.get("errcode").asInt() != 0) {
+                log.warn("[WechatOA] userinfo errcode={} errmsg={}", n.get("errcode").asInt(), str(n, "errmsg"));
+                return null;
+            }
+            Map<String, String> r = new HashMap<>();
+            r.put("openid", str(n, "openid"));
+            r.put("nickname", str(n, "nickname"));
+            r.put("sex", str(n, "sex"));
+            r.put("province", str(n, "province"));
+            r.put("city", str(n, "city"));
+            r.put("country", str(n, "country"));
+            r.put("avatar", str(n, "headimgurl"));
+            r.put("unionid", str(n, "unionid"));
+            return r;
+        } catch (Exception e) {
+            log.error("[WechatOA] fetchUserInfo failed", e);
+            return null;
+        }
+    }
+
     private static String url(String s) { return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8); }
+    private static String str(JsonNode n, String k) { return n.has(k) ? n.get(k).asText() : ""; }
 }
