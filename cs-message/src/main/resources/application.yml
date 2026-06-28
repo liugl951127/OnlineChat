@@ -6,6 +6,14 @@ spring:
     name: cs-message
   profiles:
     active: prod
+  # v2.2.62: spring.config.import 作为启动参数覆盖
+  #  默认从环境变量 SPRING_CONFIG_IMPORT 读, 为空则不额外 import
+  #  启动示例:
+  #    java -jar cs-message.jar --spring.config.import=optional:nacos:cs-message.yaml
+  #  或:
+  #    SPRING_CONFIG_IMPORT=optional:nacos:cs-message.yaml java -jar cs-message.jar
+  config:
+    import: ${SPRING_CONFIG_IMPORT:}
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:

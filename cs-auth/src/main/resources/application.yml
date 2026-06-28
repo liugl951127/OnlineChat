@@ -10,6 +10,14 @@ spring:
     active: prod
   application:
     name: cs-auth
+  # v2.2.62: spring.config.import 作为启动参数覆盖
+  #  默认从环境变量 SPRING_CONFIG_IMPORT 读, 为空则不额外 import
+  #  启动示例:
+  #    java -jar cs-auth.jar --spring.config.import=optional:nacos:cs-auth.yaml
+  #  或:
+  #    SPRING_CONFIG_IMPORT=optional:nacos:cs-auth.yaml java -jar cs-auth.jar
+  config:
+    import: ${SPRING_CONFIG_IMPORT:}
   # nacos 服务发现: 注册到 nacos
   cloud:
     nacos:
