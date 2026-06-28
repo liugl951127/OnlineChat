@@ -80,6 +80,21 @@ async function loginByPhone() {
   }
 }
 
+// v2.2.66: 访客登录 (静默分配客服)
+async function silentLogin() {
+  submitting.value = true
+  try {
+    // 后端端点: POST /auth/silent-login
+    const { data } = await auth.silent({})
+    handleLoginSuccess(data)
+    ElMessage.success('以访客身份进入，系统已为您分配客服')
+  } catch (e) {
+    ElMessage.error('访客登录失败: ' + (e.message || 'unknown'))
+  } finally {
+    submitting.value = false
+  }
+}
+
 async function register() {
   if (registerForm.password !== registerForm.confirm) return ElMessage.warning('两次密码不一致')
   if (registerForm.password.length < 6) return ElMessage.warning('密码至少 6 位')
