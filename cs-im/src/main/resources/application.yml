@@ -171,6 +171,7 @@ spring:
 ---
 spring:
   config:
+    import: "optional:nacos:cs-im-prod.yaml"   # v2.2.72: 多文档合并后被覆盖, 需重复声明
     activate:
       on-profile: prod
   datasource:
