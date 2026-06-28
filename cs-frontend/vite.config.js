@@ -22,8 +22,30 @@ export default defineConfig(({ mode }) => {
     css: {
       preprocessorOptions: {
         scss: {
-          // 启用 SCSS 变量共享（如需）
           additionalData: ''
+        }
+      }
+    },
+    // v2.2.92: 浏览器兼容目标 (与 .browserslistrc 一致)
+    // 兼容国内常用浏览器: 360/QQ/搜狗 (Chrome 78+ 内核) / Safari 13+ / Firefox 68+
+    // Element Plus 2.7+ 用 ES2020 特性, esbuild 自动降级
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+      target: ['chrome78', 'firefox68', 'safari13', 'edge88'],
+      cssTarget: ['chrome78', 'firefox68', 'safari13', 'edge88'],
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        output: {
+          // 拆 chunk: Element Plus / Vue 单独 vendor
+          // 老浏览器首次加载快 (避免单 chunk 太大)
+          // v2.2.92: vite 8/rolldown 要求 manualChunks 是 function
+          manualChunks(id) {
+            if (id.includes('node_modules/element-plus/')) return 'element-plus'
+            if (id.includes('node_modules/vue') ||
+                id.includes('node_modules/vue-router') ||
+                id.includes('node_modules/pinia')) return 'vue-vendor'
+          }
         }
       }
     },
@@ -42,32 +64,19 @@ export default defineConfig(({ mode }) => {
           // authorize/callback 走前端路由处理（避免循环 302）
           bypass: (req) => {
             const p = req.url.split('?')[0]
-            // 代理：后端 callback-json / silent / login 等
             if (p.endsWith('/callback-json') || p.endsWith('/silent-login') ||
                 p.endsWith('/login') || p.endsWith('/register') || p.endsWith('/verify/phone') ||
                 p.includes('/authorize-json') || p.includes('/js-sign')) {
               return undefined  // 走 proxy
             }
-            // 不代理：authorize / callback（这些走前端 vue-router）
-            // 注意：/callback-json 已经上面拦截，这里严格匹配 /callback
             if ((p.endsWith('/authorize') || p.endsWith('/callback')) &&
                 !p.endsWith('/callback-json')) {
-              return '/index.html'  // 返回 SPA 入口，让 vue-router 处理
+              return '/index.html'  // 返回 SPA 入口
             }
-            return undefined  // 默认走 proxy
+            return undefined
           }
         }
       }
-    },
-    build: {
-      outDir: 'dist',
-      sourcemap: false,
-      rollupOptions: {
-        output: {
-          manualChunks: undefined
-        }
-      },
-      chunkSizeWarningLimit: 1500
     },
     test: {
       environment: 'jsdom',

@@ -1,0 +1,11 @@
+# 生产环境浏览器兼容目标 (v2.2.92)
+# Element Plus 2.7+ 要求 Chrome 90+/Safari 14+/Edge 90+/Firefox 90+
+# 兼容国内常用浏览器 (360/QQ/搜狗 内核是 Chrome 78+)
+last 2 Chrome versions
+last 2 Firefox versions
+last 2 Safari versions
+last 2 Edge versions
+Chrome >= 78
+Safari >= 13
+Firefox >= 68
+not dead
