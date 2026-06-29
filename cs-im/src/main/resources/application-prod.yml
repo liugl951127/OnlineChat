@@ -74,10 +74,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
+      acks: 1                                  # v2.2.95 lead broker ack (避免多副本写阻塞)
+      retries: 1                                # v2.2.95 减少重试
       properties:
-        enable.idempotence: true
+        enable.idempotence: false               # v2.2.95 关闭幂等 (业务层补偿)
+        max.block.ms: 3000                      # v2.2.95 send 阻塞上限 3s
+        request.timeout.ms: 5000                # v2.2.95 请求超时
+        delivery.timeout.ms: 8000               # v2.2.95 投递总超时
+        linger.ms: 5
 
 # KYC 真实 API（不 mock）
 kyc:

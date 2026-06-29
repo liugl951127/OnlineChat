@@ -117,8 +117,11 @@ public class SessionService {
         // 1) 找会话
         ChatSession s;
         if (sessionId == null) {
-            // 自动取最早排队的
+            // 自动取最早排队的 (v2.2.95: WAITING + QUEUED 同等对待)
             List<ChatSession> queue = sessionRepo.findByStatus(SessionStatus.QUEUED);
+            if (queue.isEmpty()) {
+                queue = sessionRepo.findByStatus(SessionStatus.WAITING);
+            }
             if (queue.isEmpty()) throw new ApiException(404, "当前无排队客户");
             s = queue.get(0);
         } else {
@@ -126,8 +129,8 @@ public class SessionService {
                     .orElseThrow(() -> new ApiException(404, "会话不存在"));
         }
 
-        // 2) 校验状态
-        if (s.getStatus() != SessionStatus.QUEUED) {
+        // 2) 校验状态 (v2.2.95: WAITING 与 QUEUED 等价, 历史数据兼容)
+        if (s.getStatus() != SessionStatus.QUEUED && s.getStatus() != SessionStatus.WAITING) {
             throw new ApiException(400, "该会话不在排队: " + s.getStatus());
         }
 
@@ -212,9 +215,13 @@ public class SessionService {
         return activeOrThrow(customerId);
     }
 
-    /** 排队列表 */
+    /** 排队列表 (v2.2.95: WAITING 也算历史 QUEUED 值, 兼容) */
     public List<ChatSession> listQueue() {
-        return sessionRepo.findByStatus(SessionStatus.QUEUED);
+        List<ChatSession> q = sessionRepo.findByStatus(SessionStatus.QUEUED);
+        if (q.isEmpty()) {
+            q = sessionRepo.findByStatus(SessionStatus.WAITING);
+        }
+        return q;
     }
 
     /** 客户的所有会话 */
