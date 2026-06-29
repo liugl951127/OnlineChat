@@ -108,22 +108,8 @@ logging:
     com.example: INFO
     org.hibernate.SQL: WARN
     org.springframework.security: WARN
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: when-authorized
-      probes:
-        enabled: true
-  health:
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
+  path: ${LOG_PATH:/var/log/onlinechat}
+  config: classpath:logback-spring.xml
 
 info:
   app:

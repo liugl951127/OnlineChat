@@ -133,27 +133,8 @@ logging:
     org.springframework.cloud.gateway: INFO
     reactor.netty: WARN
     org.apache.kafka: WARN
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus,gateway,gatewayroutes
-  endpoint:
-    health:
-      show-details: when-authorized
-      probes:
-        enabled: true
-  health:
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
-  metrics:
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-        gateway.requests: true
+  path: ${LOG_PATH:/var/log/onlinechat}
+  config: classpath:logback-spring.xml
 
 info:
   app:

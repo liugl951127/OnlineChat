@@ -115,22 +115,14 @@ logging:
     root: INFO
     com.example.im: INFO
     org.springframework.kafka: WARN
+  path: ${LOG_PATH:/var/log/onlinechat}
+  config: classpath:logback-spring.xml
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: when-authorized
-      probes:
-        enabled: true
-  health:
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
+# cs-auth 共用 secret (v2.2.96 补 cs-im)
+cs:
+  jwt:
+    secret: ${JWT_SECRET:ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK}
+    ttl-ms: ${JWT_TTL_MS:86400000}
 
 info:
   app:

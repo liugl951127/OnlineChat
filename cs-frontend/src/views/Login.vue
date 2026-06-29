@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { auth } from '@/api'
@@ -8,6 +8,23 @@ import { useUserStore } from '@/store/user'
 import { maskMobile, getDeviceId } from '@/utils'
 import { isMockEnabled } from '@/api/mock'
 import SubscribeDialog from '@/components/SubscribeDialog.vue'  // v2.2.80
+
+// v2.2.96: i18n 占位 (后续接 vue-i18n)
+// 目前用本抹常量, 后续迁移到 $t('login.xxx')
+const i18n = ref({
+  brand: '在线客服',
+  brandSub: 'Spring Cloud · Vue 3 · Element Plus',
+  warnWeak: '密码强度: 弱, 建议使用大小写+数字+特珠字符 12+ 位',
+  warnMedium: '密码强度: 中',
+  warnStrong: '密码强度: 强',
+  warnFailed: (n) => `登录失败 ${n} 次，剩余 ${5 - n} 次机会后锁定 15 分钟`,
+  warnLocked: '账户已锁定，请 15 分钟后重试',
+  warnNewDevice: '检测到新设备登录, 请核实是否本人操作',
+  warnLastLogin: (t) => `上次登录: ${t}`,
+  warnSmsCooldown: (n) => `${n} 秒后可重发`,
+  recaptchaToken: 'reCAPTCHA 检测中...',
+  recaptchaScoreLow: '异常请求被拦截, 请刷新页面重试'
+})
 
 const isMockMode = ref(isMockEnabled())
 
@@ -31,8 +48,48 @@ const activeTab = ref('password')
 const submitting = ref(false)
 const sendCooldown = ref(0)
 
+// v2.2.96: 登录失败冷却 (后端 lock_until 字段, 前端额外留 5 次限制提示)
+const loginFailCount = ref(0)
+const loginLockedUntil = ref(0)
+const loginCooldown = ref(0)
+
 const passwordForm = reactive({ username: '', password: '' })
 const phoneForm = reactive({ phone: '', code: '' })
+
+// v2.2.96: 密码强度计算 (zxcvbn 简化算法)
+const passwordStrength = computed(() => {
+  const pwd = passwordForm.password
+  if (!pwd) return 0
+  let score = 0
+  if (pwd.length >= 8) score++
+  if (pwd.length >= 12) score++
+  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++
+  if (/\d/.test(pwd)) score++
+  if (/[^A-Za-z0-9]/.test(pwd)) score++
+  return Math.min(score, 4)  // 0-4 级
+})
+
+const passwordStrengthLabel = computed(() => {
+  return ['', '弱', '中', '良', '强'][passwordStrength.value]
+})
+
+const passwordStrengthColor = computed(() => {
+  return ['', '#f56c6c', '#e6a23c', '#67c23a', '#1890ff'][passwordStrength.value]
+})
+
+const registerStrength = computed(() => passwordStrength)
+
+// v2.2.96: 安全提示条 (上次登录 + 设备指纹)
+const securityTips = reactive({
+  lastLoginAt: localStorage.getItem('cs_last_login') || null,
+  lastLoginDevice: localStorage.getItem('cs_last_device') || null,
+  knownDevice: localStorage.getItem('cs_device_id') || null
+})
+
+const isNewDevice = computed(() => {
+  if (!securityTips.knownDevice) return false
+  return getDeviceId() !== securityTips.knownDevice
+})
 
 // v2.2.80: 公众号关注弹窗状态
 const subscribeDialog = reactive({
@@ -64,16 +121,45 @@ onMounted(async () => {
     // 推荐接口挂了用默认（全部 4 个）
     console.warn('[Login] recommend failed, use default:', e.message)
   }
+  // v2.2.96: 锁定倒计时 (冷却秒数实时更新)
+  if (loginLockedUntil.value > Date.now()) {
+    const tick = () => {
+      const sec = Math.max(0, Math.ceil((loginLockedUntil.value - Date.now()) / 1000))
+      loginCooldown.value = sec
+      if (sec > 0) setTimeout(tick, 1000)
+    }
+    tick()
+  }
 })
 
 async function loginByPassword() {
   if (!passwordForm.username || !passwordForm.password) {
     return ElMessage.warning('请输入账号和密码')
   }
+  if (loginLockedUntil.value > Date.now()) {
+    const sec = Math.ceil((loginLockedUntil.value - Date.now()) / 1000)
+    return ElMessage.warning(`账户已锁定，请 ${Math.ceil(sec/60)} 分钟后重试`)
+  }
+  // v2.2.96: 表单验证
+  if (passwordStrength.value < 1) {
+    ElMessage.warning('密码过于简单，请使用 8+ 位字符')
+    return
+  }
   submitting.value = true
   try {
     const { data } = await auth.loginByPassword(passwordForm.username, passwordForm.password)
+    loginFailCount.value = 0   // 成功重置
+    localStorage.setItem('cs_last_login', new Date().toISOString())
+    localStorage.setItem('cs_last_device', getDeviceId())
     handleLoginSuccess(data)
+  } catch (e) {
+    loginFailCount.value++
+    if (loginFailCount.value >= 5) {
+      loginLockedUntil.value = Date.now() + 15 * 60 * 1000  // 15分钟锁定
+      ElMessage.error('连续失败 5 次, 账户锁定 15 分钟')
+      return
+    }
+    ElMessage.error(`登录失败 (${loginFailCount.value}/5), ${e.message || '账号或密码错误'}`)
   } finally {
     submitting.value = false
   }
@@ -166,6 +252,9 @@ async function sendCode() {
 }
 
 function handleLoginSuccess(data) {
+  // v2.2.96: 记录设备指纹 + 登录时间
+  localStorage.setItem('cs_device_id', getDeviceId())
+  localStorage.setItem('cs_last_login', new Date().toISOString())
   user.setToken(data.token, { id: data.customerId || data.userId, name: data.nickname || data.displayName, role: data.role || 'CUSTOMER', channel: data.channel })
   // 取 CSRF Token（后端通过登录响应下发）
   if (data.csrf) localStorage.setItem('cs_csrf', data.csrf)
@@ -242,9 +331,36 @@ async function oauthLogin(provider) {
     <el-card class="login-card" shadow="always">
       <div class="brand">
         <div class="logo">💬</div>
-        <h2>在线客服</h2>
-        <p>Spring Cloud · Vue 3 · Element Plus</p>
+        <h2>{{ i18n.brand }}</h2>
+        <p>{{ i18n.brandSub }}</p>
       </div>
+
+      <!-- v2.2.96: 安全提示条 -->
+      <el-alert
+        v-if="securityTips.lastLoginAt"
+        :type="isNewDevice ? 'warning' : 'info'"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+      >
+        <template #title>
+          <small v-if="isNewDevice">检测到新设备登录, 请核实是否本人</small>
+          <small v-else>上次登录: {{ securityTips.lastLoginAt }} · 可信设备</small>
+        </template>
+      </el-alert>
+
+      <!-- v2.2.96: 连续失败提示 -->
+      <el-alert
+        v-if="loginFailCount > 0 && loginFailCount < 5"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+      >
+        <template #title>
+          <small>{{ i18n.warnFailed(loginFailCount) }}</small>
+        </template>
+      </el-alert>
 
       <!-- Mock 模式提示横幅 -->
       <el-alert
@@ -292,8 +408,15 @@ async function oauthLogin(provider) {
             </el-form-item>
             <el-form-item label="密码">
               <el-input v-model="passwordForm.password" type="password" placeholder="请输入密码" show-password maxlength="64" @keyup.enter="loginByPassword" />
+              <!-- v2.2.96: 密码强度条 -->
+              <div v-if="passwordForm.password" class="pwd-strength">
+                <div class="pwd-strength-bar">
+                  <div class="pwd-strength-fill" :style="{ width: ((passwordStrength/4)*100)+'%', background: passwordStrengthColor }"></div>
+                </div>
+                <span class="pwd-strength-label" :style="{ color: passwordStrengthColor }">{{ passwordStrengthLabel }}</span>
+              </div>
             </el-form-item>
-            <el-button type="primary" :loading="submitting" class="full" @click="loginByPassword">登录</el-button>
+            <el-button type="primary" :loading="submitting" class="full" @click="loginByPassword" :disabled="loginLockedUntil > Date.now()">登录</el-button>
             <div class="links">
               <el-link type="primary" :underline="'never'" @click="registerMode = true">注册账号</el-link>
               <el-link type="primary" :underline="'never'">忘记密码</el-link>
@@ -310,7 +433,7 @@ async function oauthLogin(provider) {
               <div class="code-row">
                 <el-input v-model="phoneForm.code" placeholder="6 位验证码" maxlength="6" />
                 <el-button :disabled="sendCooldown > 0" @click="sendCode">
-                  {{ sendCooldown > 0 ? `${sendCooldown}s` : '获取验证码' }}
+                  {{ sendCooldown > 0 ? `${sendCooldown}s 后重发` : '获取验证码' }}
                 </el-button>
               </div>
             </el-form-item>
@@ -333,11 +456,17 @@ async function oauthLogin(provider) {
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="registerForm.password" type="password" maxlength="64" show-password />
+          <div v-if="registerForm.password" class="pwd-strength">
+            <div class="pwd-strength-bar">
+              <div class="pwd-strength-fill" :style="{ width: ((registerStrength/4)*100)+'%', background: passwordStrengthColor }"></div>
+            </div>
+            <span class="pwd-strength-label" :style="{ color: passwordStrengthColor }">{{ passwordStrengthLabel }}</span>
+          </div>
         </el-form-item>
         <el-form-item label="确认密码">
           <el-input v-model="registerForm.confirm" type="password" maxlength="64" show-password />
         </el-form-item>
-        <el-button type="primary" :loading="submitting" class="full" @click="register">注册</el-button>
+        <el-button type="primary" :loading="submitting" class="full" @click="register" :disabled="registerStrength < 1">注册</el-button>
         <el-link type="primary" :underline="'never'" @click="registerMode = false">返回登录</el-link>
       </el-form>
 
@@ -386,6 +515,12 @@ async function oauthLogin(provider) {
         }
       }"
     />
+
+    <!-- v2.2.96: 底部品牌信息 (生产应去除调试信息) -->
+    <div class="brand-info">
+      在线客服 v1.7.1 · Production<br>
+      <!-- <span v-if="recaptchaEnabled">🤖 reCAPTCHA v3 已启用</span> -->
+    </div>
   </div>
 </template>
 
@@ -440,6 +575,45 @@ async function oauthLogin(provider) {
 
   .el-input { flex: 1; }
   .el-button { flex-shrink: 0; }
+}
+
+/* v2.2.96: 密码强度条 */
+.pwd-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+
+  .pwd-strength-bar {
+    flex: 1;
+    height: 4px;
+    background: #ebeef5;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .pwd-strength-fill {
+    height: 100%;
+    transition: width 0.2s, background 0.2s;
+    border-radius: 2px;
+  }
+
+  .pwd-strength-label {
+    min-width: 24px;
+    font-weight: 500;
+  }
+}
+
+/* v2.2.96: 平台品牌提示 (生产版) */
+.brand-info {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 11px;
+  color: #909399;
+  text-align: center;
+  line-height: 1.6;
 }
 
 .silent {

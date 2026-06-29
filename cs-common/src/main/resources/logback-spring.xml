@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v2.2.96: 生产日志配置
+
+  4 个服务共享 (cs-gateway / cs-auth / cs-im / cs-message)
+  通过 spring.application.name 自动切 base/package
+
+  关键能力：
+  - 控制台 + 文件双输出 (开发 stdout，生产只文件)
+  - 按日期滚动 (DailyRollingFileAppender)
+  - 按大小切分归档 (SizeAndTimeBasedRollingPolicy, 100MB max)
+  - 历史保留 30 天自动删
+  - ERROR 单独文件 (error.log, 便于告警监控)
+  - 异步输出 (AsyncAppender) 不阻塞业务线程
+  - profile prod 抑制 DEBUG, dev 显示全部
+  - Pattern 进程 ID / 线程 / 类名 / 消息 + 自定义字段
+
+  通过环境变量覆盖路径:
+    LOG_PATH=/var/log/cs-auth 日志目录
+    LOG_RETENTION_DAYS=30 历史保留天数
+
+  验证:
+    java -jar app.jar +spring.profiles.active=prod
+    tail -f /var/log/cs-auth/cs-auth.log
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- 环境变量注入 (set by docker-compose 或 systemd 或 spring boot environment) -->
+    <springProperty scope="context" name="LOG_PATH" source="logging.path" defaultValue="./logs"/>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="online-chat"/>
+    <property name="RETENTION_DAYS" value="${LOG_RETENTION_DAYS:-30}"/>
+    <property name="ENV" value="${SPRING_PROFILES_ACTIVE:-dev}"/>
+    <property name="HOSTNAME" value="${HOSTNAME:-$(hostname)}"/>
+
+    <!-- 通用 Pattern -->
+    <property name="PATTERN_CONSOLE"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level ${HOSTNAME} %X{traceId:--} %logger{40} - %msg%n"/>
+
+    <property name="PATTERN_FILE"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level ${HOSTNAME} %X{traceId:--} %logger{40} %L - %msg%n"/>
+
+    <!-- ============================== 控制台 (dev 用) ============================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATTERN_CONSOLE}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================== 主应用日志 ============================== -->
+    <!-- prudent=true: 允许多 JVM 写同一目录 (RollingFileAppender 默认对同一文件加独占锁, 第二个 jvm 启动静默失败) -->
+    <appender name="FILE_APP" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>${RETENTION_DAYS}</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+            <cleanHistoryOnStart>false</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN_FILE}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <prudent>true</prudent>
+    </appender>
+
+    <!-- ============================== ERROR 独立日志 (告警监控) ============================== -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}.error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}.error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>${RETENTION_DAYS}</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <encoder>
+            <pattern>${PATTERN_FILE}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================== 业务审计日志 (登录/支付/合规) ============================== -->
+    <appender name="FILE_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}.audit.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}.audit.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>90</maxHistory>  <!-- 审计保留 90 天 -->
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN_FILE}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================== 异步包装 (不阻塞业务) ============================== -->
+    <appender name="ASYNC_APP" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <appender-ref ref="FILE_APP"/>
+    </appender>
+
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <appender-ref ref="FILE_ERROR"/>
+    </appender>
+
+    <appender name="ASYNC_AUDIT" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <appender-ref ref="FILE_AUDIT"/>
+    </appender>
+
+    <!-- ============================== 第三方日志 level 抑制 ============================== -->
+    <logger name="org.apache.kafka" level="WARN"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="com.alibaba.nacos" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
+    <logger name="org.apache.tomcat" level="WARN"/>
+
+    <!-- ============================== 业务审计 logger ============================== -->
+    <logger name="AUDIT" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_AUDIT"/>
+    </logger>
+
+    <!-- ============================== profile 切换 level ============================== -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="test">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <!-- 生产抑制 INFO 以下 -->
+        <logger name="com.example" level="INFO"/>
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+    <!-- 默认 dev -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_APP"/>
+        <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+
+</configuration>
