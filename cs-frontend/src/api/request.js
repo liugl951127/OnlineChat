@@ -31,16 +31,11 @@ service.interceptors.request.use(async config => {
 
     try {
       let result
+      // v2.3.0: 只剩 4 个 mock 路径 (登录/注册/me/logout)
       if (url === '/auth/login' && method === 'post') result = await mockAuth.loginByPassword(body.username, body.password)
-      else if (url === '/auth/login-phone' && method === 'post') result = await mockAuth.loginByPhone(body.phone, body.code)
-      else if (url === '/auth/sms-code' && method === 'post') result = await mockAuth.sendSms(body.phone)
       else if (url === '/auth/register' && method === 'post') result = await mockAuth.register(body)
       else if (url === '/auth/me' && method === 'get') result = await mockAuth.me()
       else if (url === '/auth/logout' && method === 'post') result = await mockAuth.logout()
-      else if (url === '/auth/silent-login' && method === 'post') result = await mockAuth.silent(body?.token)
-      else if (url.endsWith('/authorize')) {
-        return mockAuth.oauthAuthorize(url.split('/')[2], config.params?.redirect_uri)
-      }
 
       if (result) {
         // 短路：直接返回模拟响应，不走网络

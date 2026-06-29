@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.im.repo.ChatLinkMapper">
+
+    <resultMap id="BaseMap" type="com.example.im.domain.ChatLink">
+        <id property="id" column="id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="agentUsername" column="agent_username"/>
+        <result property="targetUrl" column="target_url"/>
+        <result property="shortToken" column="short_token"/>
+        <result property="clickCount" column="click_count"/>
+        <result property="maxClicks" column="max_clicks"/>
+        <result property="expireAt" column="expire_at"/>
+        <result property="revoked" column="revoked"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findFirstByToken" resultMap="BaseMap">
+        SELECT * FROM chat_link WHERE short_token = #{shortToken} LIMIT 1
+    </select>
+
+</mapper>

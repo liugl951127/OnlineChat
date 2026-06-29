@@ -39,14 +39,7 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
-        </dependency>
+        <!-- v2.3.0: 删 flyway, schema 由 scripts/db-rebuild.sh + docs/db_init_all.sql 统一管理 -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>

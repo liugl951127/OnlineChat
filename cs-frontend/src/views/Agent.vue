@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { link as linkApi, im as imApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { im, agent as agentApi, robot } from '@/api'
 import { useUserStore } from '@/store/user'
@@ -24,6 +25,9 @@ const messages = ref([])
 const messagesRef = ref(null)
 const inputText = ref('')
 const sending = ref(false)
+const showLinkDialog = ref(false)
+const linkUrl = ref('')
+const pushingLink = ref(false)
 const showEmoji = ref(false)
 const showTemplates = ref(false)
 const showProductPanel = ref(false)
@@ -165,6 +169,27 @@ async function send(textOverride) {
     sending.value = false
   }
 }
+
+async function pushLink() {
+  if (!linkUrl.value || !activeId.value) {
+    ElMessage.warning('请输入 URL 并选择会话')
+    return
+  }
+  pushingLink.value = true
+  try {
+    const { data } = await linkApi.push(activeId.value, linkUrl.value)
+    ElMessage.success(`链接已推送 (短期 ${data.shortToken})`)
+    showLinkDialog.value = false
+    linkUrl.value = ''
+    // 推一条本地消息记录
+    if (window.__pushLinkLog) window.__pushLinkLog(data)
+  } catch (e) {
+    ElMessage.error('推送失败: ' + (e?.response?.data?.msg || e.message))
+  } finally {
+    pushingLink.value = false
+  }
+}
+
 
 async function recall(msg) {
   if (Date.now() - msg.time > 2 * 60 * 1000) return ElMessage.warning('超过 2 分钟无法撤回')
@@ -387,6 +412,18 @@ function onPurchased(data) {
               <el-button text :icon="'Upload'" />
             </el-upload>
             <el-button text :icon="'ShoppingCart'" @click="showProductPanel = !showProductPanel" title="金融产品购买" />
+            <el-popover :width="420" trigger="click" v-model:visible="showLinkDialog" title="🔗 推送链接给客户">
+              <template #reference>
+                <el-button text :icon="'Promotion'" title="推链接给客户" />
+              </template>
+              <div class="link-push">
+                <el-input v-model="linkUrl" placeholder="https://example.com/xxx" clearable />
+                <el-button type="primary" :loading="pushingLink" @click="pushLink" style="margin-top: 8px; width: 100%;">
+                  推送给客户
+                </el-button>
+                <div class="link-tip">⚠️ 链接会校验白名单, 客户打开一次后失效</div>
+              </div>
+            </el-popover>
             <ScreenShare role="agent"
               :session-id="activeId"
               :agent-username="user.profile?.name"

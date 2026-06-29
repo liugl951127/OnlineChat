@@ -84,6 +84,7 @@ onUnmounted(() => {
   if (recorder.isRecording.value) {
     recorder.finish()
   }
+  // v2.3.0: 不清 localStorage (留作刷新恢复)
 })
 
 // v2.2.78: 会话回溯 Recorder
@@ -95,6 +96,11 @@ const recorder = useReplayRecorder({
   onError: (e) => console.warn('[Replay Recorder]', e)
 })
 
+// v2.3.0: messages 变化时持久化 (F2)
+watch(messages, (val) => {
+  if (val && val.length > 0) saveMessages(val)
+}, { deep: true })
+
 // 同步 sessionId 到 recorder (当 loadSession 更新时)
 watch(sessionId, (newId) => {
   if (newId && !recorder.isRecording.value) {
@@ -103,16 +109,24 @@ watch(sessionId, (newId) => {
 })
 
 // ============ WebSocket（实时聊天） ============
+let stompOverWS = null  // v2.3.0: STOMP-over-ReconnectWS 包装
+
 async function connectWS() {
   try {
     const SockJS = (await import('sockjs-client')).default
     const Stomp = (await import('stompjs')).default
-    const sock = new SockJS('/ws/im')
+    // v2.3.0: 直接用 SockJS (自带重连), 不再叠加 ReconnectWS
+    const sock = new SockJS('/ws/im?customerId=' + encodeURIComponent(user.profile?.id || ''))
     stompClient.value = Stomp.over(sock)
     stompClient.value.debug = null
+    stompClient.value.heartbeat.outgoing = 20000  // 20s 客户端心跳
+    stompClient.value.heartbeat.incoming = 20000
     window.__stompClient = stompClient.value
     stompClient.value.connect({ Authorization: 'Bearer ' + user.token }, frame => {
       connected.value = true
+      // 连上 → 立即 drain 离线消息
+      loadOffline()
+      saveMessages(messages.value)
       // 订阅客户频道（接收坐席回复 + 系统消息）
       stompClient.value.subscribe('/user/queue/messages', msg => {
         try {
@@ -131,6 +145,14 @@ async function connectWS() {
           } else if (data.type === 'ENDED') {
             hasAgent.value = false
             statusTip.value = '会话已结束'
+          } else if (data.type === 'MESSAGE_NEW' && data.payload?.type === 'LINK') {
+            // v2.3.0: 坐席推链接 - 渲染卡片
+            const token = (data.payload.text || '').replace('[LINK]', '').split('|')[0]
+            const url = (data.payload.text || '').split('|')[1] || ''
+            data.payload.linkCard = { token, url, shortUrl: '/api/im/link/' + token }
+            messages.value.push(data)
+            nextTick(scrollToBottom)
+            return
           }
           // 正常消息
           if (data.text || data.content) {
@@ -156,7 +178,8 @@ async function connectWS() {
       })
     }, err => {
       connected.value = false
-      // 自动重连（间隔 3 秒）
+      console.warn('[WS] disconnected, retry 3s')
+      // 重连后会自动触发 loadOffline (在 connect 成功回调里)
       setTimeout(connectWS, 3000)
     })
   } catch (e) {
@@ -170,13 +193,27 @@ function disconnectWS() {
 
 // ============ 历史/会话/离线消息 ============
 async function loadSession() {
+  // v2.3.0: F2 先恢复 localStorage (防刷新断线)
+  const cached = loadLocalSession()
+  if (cached.sessionId) {
+    sessionId.value = cached.sessionId
+    sessionInfo.value = cached.info
+    if (cached.info) updateStatusFromSession(cached.info)
+  }
+  // 恢复 messages 缓存
+  const cachedMsgs = loadMessages()
+  if (cachedMsgs.length > 0) {
+    messages.value = cachedMsgs
+  }
+
   try {
     const { data } = await im.activeSession()
     sessionInfo.value = data
     sessionId.value = data.id
+    saveSession(data.id, data)
     updateStatusFromSession(data)
   } catch (e) {
-    ElMessage.error('加载会话失败')
+    if (!cached.sessionId) ElMessage.error('加载会话失败')
   }
   // 同时加载 KYC 状态
   try {
@@ -232,6 +269,21 @@ async function loadOffline() {
       ElMessage.info(`已加载 ${offlineCount.value} 条离线消息`)
     }
   } catch {}
+}
+
+// ============ v2.3.0: 打开链接卡片 ============
+async function openLinkCard(card) {
+  try {
+    const { data } = await linkApi.open(card.token)
+    if (data.ok && data.url) {
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+      ElMessage.success('已打开链接')
+    } else {
+      ElMessage.error('链接无效')
+    }
+  } catch (e) {
+    ElMessage.error('打开链接失败: ' + (e?.response?.data?.msg || e.message))
+  }
 }
 
 // ============ 发送消息 ============

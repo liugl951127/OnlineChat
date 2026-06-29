@@ -66,22 +66,32 @@ spring:
     consumer:
       group-id: cs-im-group
       auto-offset-reset: earliest
+      concurrency: 3                             # v2.3.0 每 @KafkaListener 启 3 协程
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      max-poll-records: 200                      # v2.3.0 一次拉 200 条
+      fetch-min-size: 1
+      fetch-max-wait: 100                        # v2.3.0 100ms 间隔
       properties:
         spring.json.trusted.packages: com.example.common.kafka
         spring.json.use.type.headers: false
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+        client.id: cs-im-consumer-1
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: 1                                  # v2.2.95 lead broker ack (避免多副本写阻塞)
-      retries: 1                                # v2.2.95 减少重试
+      acks: 1                                  # v2.2.95 lead broker ack
+      retries: 2                                # v2.3.0 重试 +1 (业务补偿)
+      batch-size: 65536                         # v2.3.0 64KB (默认 16KB 翻倍)
       properties:
-        enable.idempotence: false               # v2.2.95 关闭幂等 (业务层补偿)
-        max.block.ms: 3000                      # v2.2.95 send 阻塞上限 3s
-        request.timeout.ms: 5000                # v2.2.95 请求超时
-        delivery.timeout.ms: 8000               # v2.2.95 投递总超时
-        linger.ms: 5
+        enable.idempotence: false
+        max.block.ms: 3000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 8000
+        linger.ms: 20                            # v2.3.0 20ms (默认 0 改成批量合并)
+        compression.type: lz4                    # v2.3.0 LZ4 压缩 (带宽省 60%)
+        client.id: cs-im-producer-1              # v2.3.0 用于 metrics 标识
+        partitioner.class: org.apache.kafka.clients.producer.internals.DefaultPartitioner  # key=sessionId 路由同 partition
 
 # KYC 真实 API（不 mock）
 kyc:

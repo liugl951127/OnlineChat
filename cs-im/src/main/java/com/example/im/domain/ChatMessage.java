@@ -43,6 +43,7 @@ public class ChatMessage {
 
     /** 消息签名（防篡改） */
     private String signature;
+    private String sm3Hash;       // v2.3.0: 消息内容 SM3, 用于双轨 hash 链
 
     /** 引用的消息 ID（可选） */
     private Long replyToId;

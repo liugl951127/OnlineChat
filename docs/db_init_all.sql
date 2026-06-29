@@ -243,6 +243,82 @@ CREATE TABLE chat_session (
     INDEX idx_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ChatSession';
 
+-- v2.2.97: 国密 (SM2/SM4/SM3) 加密客户会话录像 (合规等保 2.0 + PBOC)
+DROP TABLE IF EXISTS monitor_segment;
+CREATE TABLE monitor_segment (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    session_id            BIGINT NOT NULL COMMENT '关联 chat_session.id',
+    customer_id           VARCHAR(64) NOT NULL COMMENT '冗余 - 便于权限检查',
+    segment_idx           INT NOT NULL COMMENT '分片序号 (从 0 递增, 每 session 独立)',
+    started_at            DATETIME(3) NULL COMMENT '前端开始截图时间',
+    duration_ms           INT NOT NULL COMMENT '该片录制时长 (毫秒)',
+    iv_b64                VARCHAR(64) NOT NULL COMMENT 'SM4-GCM 96-bit IV base64',
+    wrapped_dek_b64       TEXT NOT NULL COMMENT 'SM2 加密的 DEK (SM4 128-bit key)',
+    ciphertext_blob       LONGBLOB NOT NULL COMMENT 'SM4-GCM 密文 (含 16B tag) — 后端解密后落盘为 plaintext 后清零',
+    sm3_hash              CHAR(64) NULL COMMENT '明文 SM3 校验 (上传时计算)',
+    prev_sm3_hash         CHAR(64) NULL COMMENT 'v2.3.0: 防篡改 hash 链 - 上一个分片的 sm3 (第一段为 NULL)',
+    size_bytes            BIGINT NOT NULL COMMENT '上传体积 (B)',
+    storage_path          VARCHAR(512) NULL COMMENT '解密后的本地路径: /var/data/monitor/{sessionId}/{idx}.seg.bin',
+    kms_key_id            VARCHAR(64) NULL COMMENT '后端存放: sm2-priv-pem-path 的指纹 (KMS 集成后改为 KMS key id)',
+    upload_ts             DATETIME(3) NOT NULL COMMENT '上传时间戳',
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_session_idx (session_id, segment_idx),
+    INDEX idx_session (session_id),
+    INDEX idx_customer (customer_id),
+    INDEX idx_upload (upload_ts),
+    INDEX idx_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='v2.2.97 国密加密录像分片';
+
+-- MonitorSession 会话级录像头 (快速查找, 不去读 segment)
+DROP TABLE IF EXISTS monitor_session;
+CREATE TABLE monitor_session (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    session_id            BIGINT NOT NULL COMMENT '关联 chat_session.id',
+    customer_id           VARCHAR(64) NOT NULL,
+    agent_username        VARCHAR(64) NULL COMMENT '录制中若有坐席, 对其负责',
+    started_at            DATETIME(3) NOT NULL COMMENT '会话起始录像时间',
+    last_segment_at       DATETIME(3) NULL COMMENT '最近上传分片时间 (判断是否活跃)',
+    segment_count         INT NOT NULL DEFAULT 0 COMMENT '已上传分片数',
+    total_bytes           BIGINT NOT NULL DEFAULT 0 COMMENT '累计上传体积',
+    status                VARCHAR(32) NOT NULL DEFAULT 'RECORDING' COMMENT 'RECORDING/UPLOADING/ENDED/FAILED',
+    retention_until       DATETIME NULL COMMENT '等保 2.0 要求至少保存 6 个月, 默认 +180 天',
+    sm3_chain_root        CHAR(64) NULL COMMENT 'v2.3.0: hash 链上链时的快照, 防会话整体篡改',
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    deleted               TINYINT(1) NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_session (session_id),
+    INDEX idx_customer (customer_id),
+    INDEX idx_status (status),
+    INDEX idx_retention (retention_until),
+    INDEX idx_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='v2.2.97 客户录像会话头';
+
+-- v2.3.0: 录像访问审计 (合规: 谁能看, 谁下过, 谁导出过)
+DROP TABLE IF EXISTS monitor_audit;
+CREATE TABLE monitor_audit (
+    id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    session_id            BIGINT NOT NULL COMMENT '被访问的会话',
+    customer_id           VARCHAR(64) NOT NULL COMMENT '被访问会话的客户 (冗余)',
+    operator_id           VARCHAR(64) NOT NULL COMMENT '访问人 (admin / supervisor / 该 agent)',
+    operator_role         VARCHAR(32) NOT NULL COMMENT 'ADMIN/SUPERVISOR/AGENT/SYSTEM',
+    operator_ip           VARCHAR(64) NULL,
+    action                VARCHAR(32) NOT NULL COMMENT 'VIEW/DOWNLOAD/EXPORT/DELETE/PLAYBACK_JUMP',
+    segment_from          INT NULL COMMENT '访问起始 idx (null=整个会话)',
+    segment_to            INT NULL,
+    extra                 TEXT NULL COMMENT 'JSON: 跳转时间戳 / 客户端 / 备注',
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_session (session_id),
+    INDEX idx_operator (operator_id),
+    INDEX idx_action (action),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='v2.3.0 录像访问审计';
+
+-- v2.3.0: chat_message 加 sm3_hash 字段 (双轨 hash 链)
+ALTER TABLE chat_message ADD COLUMN sm3_hash CHAR(64) NULL COMMENT 'v2.3.0 消息内容 SM3 摘要, 防篡改' AFTER signature;
+ALTER TABLE chat_message ADD INDEX idx_sm3 (sm3_hash);
+
 -- ReplayFrame 会话帧索引 (v2.2.78 视频回溯系统)
 DROP TABLE IF EXISTS replay_frame;
 CREATE TABLE replay_frame (

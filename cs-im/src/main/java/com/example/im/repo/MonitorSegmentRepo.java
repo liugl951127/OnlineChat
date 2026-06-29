@@ -1,0 +1,8 @@
+package com.example.im.repo;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.example.im.domain.MonitorSegment;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface MonitorSegmentRepo extends BaseMapper<MonitorSegment> {}

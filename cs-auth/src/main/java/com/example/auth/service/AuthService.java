@@ -299,6 +299,40 @@ public class AuthService {
         userRepo.save(u);
     }
 
+    /**
+     * v2.3.0 统一账号+密码登录 (客户/坐席都走这条)
+     *
+     * <p>不区分 username 前缀, 直接根据 wechat_user 表查, role 从 user.role 读取
+     * (现在 user 表里能区分 a-xxxx = AGENT, c-xxxx = CUSTOMER, 由 admin_seed / 手动录入)
+     */
+    @Transactional
+    public Map<String, Object> unifiedPasswordLogin(String username, String password, String ip) {
+        if (!loginRateLimiter.tryAcquire("login-pwd:" + username + ":" + (ip == null ? "" : ip))) {
+            throw new ApiException(429, "尝试次数过多，请 1 分钟后再试");
+        }
+        if (username == null || password == null) {
+            throw new ApiException(400, "用户名/密码必填");
+        }
+        WechatUser u = userRepo.findByUsername(username)
+                .orElseThrow(() -> {
+                    recordFail(null, username);
+                    return new ApiException(401, "用户名或密码错误");
+                });
+        if (u.getLockUntil() != null && u.getLockUntil().isAfter(LocalDateTime.now())) {
+            throw new ApiException(423, "账号已被锁定至 " + u.getLockUntil());
+        }
+        if (!CryptoUtils.verifyPassword(password, u.getPasswordHash())) {
+            recordFail(u, username);
+            throw new ApiException(401, "用户名或密码错误");
+        }
+        u.setLoginFailCount(0);
+        u.setLockUntil(null);
+        u.setLastLoginTime(LocalDateTime.now());
+        u.setLastLoginIp(ip);
+        userRepo.save(u);
+        return tokenResponse(u, "LOCAL");
+    }
+
     // ==================== 手机号 + 验证码 ====================
 
     @Transactional
@@ -357,7 +391,9 @@ public class AuthService {
 
     private Map<String, Object> tokenResponse(WechatUser u, String channel) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", "CUSTOMER");
+        // v2.3.0: role 来自 user.role (AGENT/CUSTOMER), 不写死
+        String role = u.getRole() != null ? u.getRole() : "CUSTOMER";
+        claims.put("role", role);
         claims.put("userId", u.getCustomerId());
         claims.put("displayName", u.getNickname());
         claims.put("channel", channel);

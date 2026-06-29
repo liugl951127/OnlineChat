@@ -51,10 +51,6 @@ spring:
         login-password: admin123
         url-pattern: /druid/*
 
-  flyway:
-    enabled: false   # v2.2.0: cs-im 不需要 migration 校验，统一走 db_init_all.sql
-    baseline-on-migrate: false
-    locations: classpath:db/migration
 
   mybatis-plus:
     mapper-locations: classpath*:mapper/**/*.xml
@@ -82,11 +78,37 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
+      acks: 1                            # v2.3.0: 单 broker 场景 acks=1 已足够
+      retries: 2                         # v2.3.0: 重试 2 次 (避免长尾)
+      batch-size: 65536                  # v2.3.0: 64KB 批
       properties:
-        enable.idempotence: true
+        # v2.3.0: max.block.ms=3000 (默认 60s 太长, Kafka 不可达时阻塞 HTTP)
+        max.block.ms: 3000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 8000
+        linger.ms: 20                    # v2.3.0: linger 20ms 攒批
+        compression.type: lz4            # v2.3.0: LZ4 压缩
+        max.in.flight.requests.per.connection: 5  # v2.3.0: 同 key 顺序保证 (idempotence=false)
+        client.id: cs-im-producer-1
         spring.json.add.type.headers: false
+    consumer:
+      group-id: cs-im-consumer
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      enable-auto-commit: false         # v2.3.0: 手动 ack
+      auto-offset-reset: latest
+      max-poll-records: 200             # v2.3.0: 批拉 200 条
+      properties:
+        spring.json.trusted.packages: "*"
+        # v2.3.0: CooperativeStickyAssignor (重平衡不丢, 比 RangeAssignor 更平滑)
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+        fetch.max.wait.ms: 100
+        session.timeout.ms: 15000
+        heartbeat.interval.ms: 5000
+    listener:
+      concurrency: 3                    # v2.3.0: 3 并发
+      ack-mode: manual
+      missing-topics-fatal: false       # 沙箱 Kafka 不在也启动
 
   servlet:
     multipart:
@@ -168,8 +190,6 @@ spring:
     username: sa
     password:
     type: com.zaxxer.hikari.HikariDataSource
-  flyway:
-    enabled: false
   mybatis-plus:
     mapper-locations: classpath*:mapper/**/*.xml
 
@@ -228,3 +248,14 @@ local:
     enabled: true
     cascade-path: classpath:haarcascades/haarcascade_frontalface.xml
     match-threshold: 80
+
+# v2.2.97: 国密 (SM2/SM4/SM3) 加密客户会话录像
+# 生产私钥放 KMS / Vault, 当前支持本地 PEM 文件
+cs:
+  monitor:
+    enabled: ${CS_MONITOR_ENABLED:true}
+    sm2-priv-pem-path: ${CS_MONITOR_SM2_PRIV:/root/.cs/cs-monitor.priv.pem}
+    storage-dir: ${CS_MONITOR_STORAGE_DIR:/var/data/monitor}
+    segment-duration-ms: 5000        # SDK 默认每 5s 切一片
+    retention-days: 180              # 等保 2.0 - PBOC 6 个月留存
+    encrypt-at-rest: false           # 解密后落本地, 默认不安全, 生产建议 LUKS / KMS 包裹磁盘

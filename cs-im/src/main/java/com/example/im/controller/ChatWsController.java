@@ -2,6 +2,7 @@ package com.example.im.controller;
 
 import com.example.common.ApiException;
 import com.example.common.WsEnvelope;
+import com.example.common.msg.WsPushService;
 import com.example.im.domain.ChatSession;
 import com.example.im.service.MessageService;
 import com.example.im.service.SessionService;
@@ -10,7 +11,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
 
 @Slf4j
 @Controller
@@ -19,6 +23,7 @@ public class ChatWsController {
 
     private final SessionService sessionService;
     private final MessageService messageService;
+    private final WsPushService wsPushService;
 
     @MessageMapping("/customer/chat")
     public void fromCustomer(Message<?> rawMessage, WsEnvelope inbound) {

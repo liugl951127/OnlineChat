@@ -37,10 +37,12 @@ public class KafkaMessageProducer {
      */
     public CompletableFuture<SendResult<String, Object>> send(String topic, String key, Object payload) {
         log.debug("[Kafka] send topic={} key={} payloadType={}", topic, key, payload.getClass().getSimpleName());
-        CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(topic, key, payload);
+        // v2.3.0: max.block.ms=3s (Kafka 不可达不阻塞 HTTP, 默认 60s)
+        CompletableFuture<SendResult<String, Object>> future =
+            kafkaTemplate.send(topic, key, payload);
         future.whenComplete((res, ex) -> {
             if (ex != null) {
-                log.error("[Kafka] send failed topic={} key={}", topic, key, ex);
+                log.warn("[Kafka] send failed topic={} key={} err={}", topic, key, ex.getMessage());
             } else if (log.isDebugEnabled()) {
                 log.debug("[Kafka] sent topic={} partition={} offset={}",
                     res.getRecordMetadata().topic(),
@@ -49,6 +51,33 @@ public class KafkaMessageProducer {
             }
         });
         return future;
+    }
+
+    /**
+     * v2.3.0: 带幂等 ID 的发送 (防重复消费)
+     *
+     * <p>idempotentId 一般用 UUID, 写入消息 header
+     */
+    public CompletableFuture<SendResult<String, Object>> sendIdempotent(String topic, String key,
+                                                                       Object payload, String idempotentId) {
+        CompletableFuture<SendResult<String, Object>> future =
+            kafkaTemplate.send(org.apache.kafka.clients.producer.ProducerRecord.class.cast(
+                buildRecord(topic, key, payload, idempotentId)));
+        future.whenComplete((res, ex) -> {
+            if (ex != null) {
+                log.warn("[Kafka] sendIdempotent failed topic={} key={} id={} err={}",
+                    topic, key, idempotentId, ex.getMessage());
+            }
+        });
+        return future;
+    }
+
+    private org.apache.kafka.clients.producer.ProducerRecord<String, Object> buildRecord(
+            String topic, String key, Object payload, String idempotentId) {
+        org.apache.kafka.clients.producer.ProducerRecord<String, Object> rec =
+            new org.apache.kafka.clients.producer.ProducerRecord<>(topic, null, key, payload);
+        rec.headers().add("idempotent-id", idempotentId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return rec;
     }
 
     /** 发送聊天消息便捷方法 */

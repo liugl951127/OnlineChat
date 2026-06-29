@@ -1,28 +1,18 @@
 import request from './request'
 
-// ============= Auth =============
+// ============= Auth (v2.3.0 简化) =============
 export const auth = {
-  loginByPassword: (username, password) => request.post('/auth/login', { username, password }),
-  loginByPhone: (phone, code) => request.post('/auth/login-phone', { phone, code }),
-  sendSms: phone => request.post('/auth/sms-code', { phone }),
-  register: data => request.post('/auth/register', data),
-  adminLogin: data => request.post('/auth/admin/login', data),
-  /** v2.2.40: 坐席账号密码登录 */
-  agentLogin: (username, password) => request.post('/auth/agent/login', { username, password }),
-  /** v2.2.66: 访客静默登录 (后端端点 /auth/silent-login) */
-  silent: data => request.post('/auth/silent-login', data),
+  /** 统一账号密码登录 (客户/坐席/管理员; 后端按 username 自动判 role) */
+  login: (username, password) => request.post('/auth/login', { username, password }),
+  /** 简单注册 */
+  register: (username, password, nickname) =>
+    request.post('/auth/register', { username, password, nickname }),
+  /** 修改密码 (登录后) */
+  changePassword: (oldPassword, newPassword) =>
+    request.post('/auth/password', { oldPassword, newPassword }),
   me: () => request.get('/auth/me'),
   logout: () => request.post('/auth/logout'),
-  /** v2.2.31: 拿 OAuth 授权 URL (JSON 形式，避开 PC 端 302 弹窗拦截) */
-  oauthAuthorizeJson: (provider, redirectUri, scope) =>
-    request.get(`/auth/${provider}/authorize-json`, { params: { redirect_uri: redirectUri, scope } }),
-  // v2.2.80: 公众号关注检查 + 二维码
-  checkOaSubscribe: openid => request.get('/auth/wechat-oa/subscribe-check', { params: { openid } }),
-  qrcodeForSubscribe: sceneId => request.post('/auth/wechat-oa/qrcode-for-subscribe', { sceneId }),
-  /** v2.2.39: 设备自适应 OAuth provider 推荐 */
-  oauthRecommend: () => request.get('/auth/oauth/recommend'),
-  githubUrl: redirect => request.get('/auth/github/authorize', { params: { redirect_uri: redirect } }),
-  googleUrl: redirect => request.get('/auth/google/authorize', { params: { redirect_uri: redirect } })
+  refresh: () => request.post('/auth/refresh')
 }
 
 // ============= IM 实时聊天（v1.9.0 HTTP 实时 + 离线） =============
@@ -44,9 +34,11 @@ export const im = {
   mySessions: () => request.get('/im/customer/sessions'),
   /** 客户发消息（含机器人应答） */
   chat: data => request.post('/im/customer/chat', data),
-  /** 离线消息 */
-  drainOffline: sessionId => request.get('/im/customer/offline/drain', { params: { sessionId } }),
-  offlineSize: sessionId => request.get('/im/customer/offline/size', { params: { sessionId } }),
+  /** 离线消息 (v2.3.0: 不需 sessionId, 用 userId) */
+  drainOffline: () => request.get('/im/customer/offline/drain'),
+  offlineSize: () => request.get('/im/customer/offline/size'),
+  /** WS 在线状态 */
+  wsStatus: () => request.get('/im/customer/ws/status'),
   /** 视频回溯 */
   replayByCustomer: sessionId => request.get(`/im/customer/replay/${sessionId}`)
 }
@@ -214,3 +206,11 @@ export const admin = {
 }
 
 export default request
+
+// ============= v2.3.0 推链接 =============
+export const link = {
+  /** 坐席推链接 */
+  push: (sessionId, targetUrl) => request.post('/im/agent/link', { sessionId, targetUrl }),
+  /** 客户打开短链 (返回 JSON 含 targetUrl) */
+  open: token => request.get(`/im/link/${token}`)
+}

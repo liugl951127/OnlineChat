@@ -65,17 +65,17 @@ spring:
           max-idle: 30
           min-idle: 5
 
-# 微信公众号（生产真实配置）
+# 微信公众号（生产真实配置, 默认不 Mock; 沙箱测试 set WX_OA_MOCK=true）
 wechat:
   oa:
     app-id: ${WX_OA_APP_ID:wx-your-real-app-id}
     app-secret: ${WX_OA_APP_SECRET:your-real-secret}
-    mock: ${WX_OA_MOCK:true}    # 默认 mock，沙箱无真实 appId；生产部署时显式 set WX_OA_MOCK=false
+    mock: ${WX_OA_MOCK:false}    # v2.2.97 默认 false, 生产走真实公众平台接口
   work:
     corp-id: ${WX_WORK_CORP_ID:your-corp-id}
     corp-secret: ${WX_WORK_CORP_SECRET:your-secret}
     agent-id: ${WX_WORK_AGENT_ID:1000001}
-    mock: ${WX_WORK_MOCK:true}
+    mock: ${WX_WORK_MOCK:false}
   mini:
     app-id: ${WX_MINI_APP_ID:your-mini-app-id}
     app-secret: ${WX_MINI_APP_SECRET:your-secret}

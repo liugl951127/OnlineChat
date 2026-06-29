@@ -44,7 +44,11 @@ public class CsrfFilter implements Filter {
         "/auth/wechat-oa/subscribe-check", "/auth/wechat-oa/qrcode-for-subscribe",
         // v2.2.28: 微信推送端点 (微信服务器 POST, 无 CSRF)
         "/auth/wechat-oa/customer-message", "/auth/wechat-oa/template-send",
-        "/auth/wx-mini/subscribe-send"
+        "/auth/wx-mini/subscribe-send",
+        // v2.2.97: 录像上传 (客户 SDK 不带 CSRF cookie; 防护靠 JWT + 同源 referer + session 归属验证)
+        "/im/monitor/upload", "/im/monitor/end",
+        // v2.3.0: 多端点 WS (SockJS 握手 GET 透传)
+        "/ws", "/ws/customer", "/ws/agent", "/ws/admin"
     );
 
     @Override

@@ -3,11 +3,12 @@ package com.example.im.controller;
 import com.example.common.ApiException;
 import com.example.common.ApiResponse;
 import com.example.common.SecurityContextHolder;
+import com.example.common.msg.OfflineMessageStore;
+import com.example.common.msg.WsPushService;
 import com.example.im.domain.ChatMessage;
 import com.example.im.domain.ChatSession;
 import com.example.im.service.MessageService;
 import com.example.im.service.SessionService;
-import com.example.im.service.OfflineMessageStore;
 import com.example.im.service.FaqService;
 import com.example.im.service.RobotEngine;
 import lombok.Data;
@@ -40,6 +41,7 @@ public class CustomerController {
     private final SessionService sessionService;
     private final MessageService messageService;
     private final OfflineMessageStore offlineStore;
+    private final WsPushService wsPushService;
     private final FaqService faqService;
     private final RobotEngine robotEngine;
 
@@ -130,21 +132,36 @@ public class CustomerController {
     }
 
     /**
-     * 拉取离线消息（Redis List）
+     * v2.3.0: drain 离线消息 (按 userId)
      */
     @GetMapping("/offline/drain")
-    public ApiResponse<List<Map<String, Object>>> drainOffline(@RequestParam Long sessionId) {
+    public ApiResponse<List<String>> drainOffline() {
         var ctx = SecurityContextHolder.current();
         if (ctx == null) throw new ApiException(401, "未登录");
-        return ApiResponse.ok(offlineStore.drain(sessionId));
+        return ApiResponse.ok(offlineStore.drain(ctx.getUserId()));
     }
 
     /**
-     * 查离线消息数量（用于前端小红点）
+     * v2.3.0: 查离线消息数量 (前端小红点)
      */
     @GetMapping("/offline/size")
-    public ApiResponse<Long> offlineSize(@RequestParam Long sessionId) {
-        return ApiResponse.ok(offlineStore.size(sessionId));
+    public ApiResponse<Long> offlineSize() {
+        var ctx = SecurityContextHolder.current();
+        if (ctx == null) throw new ApiException(401, "未登录");
+        return ApiResponse.ok(offlineStore.count(ctx.getUserId()));
+    }
+
+    /**
+     * v2.3.0: WS 在线状态 (前端进站确认是否连得上)
+     */
+    @GetMapping("/ws/status")
+    public ApiResponse<Map<String, Object>> wsStatus() {
+        var ctx = SecurityContextHolder.current();
+        if (ctx == null) throw new ApiException(401, "未登录");
+        boolean local = wsPushService.isLocalOnline(ctx.getUserId());
+        Map<String, Object> ret = new HashMap<>();
+        ret.put("localOnline", local);
+        return ApiResponse.ok(ret);
     }
 
     /**
