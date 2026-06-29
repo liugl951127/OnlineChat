@@ -1,0 +1,58 @@
+# =====================================================
+# OnlineChat cs-im-prod.yaml (v2.2.94 修复版)
+# 修复: 合并重复 spring 顶级 key, 显式配置 JWT_SECRET
+# =====================================================
+spring:
+  application:
+    name: cs-im
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:prod}
+        file-extension: yaml
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        refresh-enabled: true
+  config:
+    import: "optional:nacos:cs-im-prod.yaml"
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cs_im}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:127.0.0.1:9092}
+    consumer:
+      group-id: cs-im-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.common.kafka
+        spring.json.use.type.headers: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+
+# JWT 共享密钥 (与 cs-gateway/cs-auth 一致, 否则 token 解析失败)
+cs:
+  jwt:
+    secret: ${JWT_SECRET:ZLmASTkUGsHRGeHW8i3-Fk1Hw39lEHIK}
+    ttl-ms: ${JWT_TTL_MS:86400000}
