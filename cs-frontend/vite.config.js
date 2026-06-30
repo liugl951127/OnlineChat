@@ -36,10 +36,18 @@ export default defineConfig(({ mode }) => {
       cssTarget: ['chrome78', 'firefox68', 'safari13', 'edge88'],
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
+        // v2.3.0: 静默 VueUse 14.x 的 PURE annotation warning
+        //   Rollup 本身会安全移除注释 (不影响代码), 但 verbose log 噪音
+        onwarn(warning, defaultHandler) {
+          if (warning.code === 'INVALID_ANNOTATION' &&
+              warning.message?.includes('PURE')) {
+            return  // 静默
+          }
+          defaultHandler(warning)
+        },
         output: {
           // 拆 chunk: Element Plus / Vue 单独 vendor
           // 老浏览器首次加载快 (避免单 chunk 太大)
-          // v2.2.92: vite 8/rolldown 要求 manualChunks 是 function
           manualChunks(id) {
             if (id.includes('node_modules/element-plus/')) return 'element-plus'
             if (id.includes('node_modules/vue') ||
