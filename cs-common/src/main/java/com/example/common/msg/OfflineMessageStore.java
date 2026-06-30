@@ -3,7 +3,7 @@ package com.example.common.msg;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ import java.util.List;
  * <p>为什么用 LPUSH 不直接存全文: List 省内存, 详情用单独 Hash 方便单独 TTL
  */
 @Slf4j
-@Component
+@Service("commonOfflineMessageStore")  // v2.3.1: 显式 bean 名, 避免与 cs-message 自带同名 bean 冲突
 @RequiredArgsConstructor
 public class OfflineMessageStore {
 

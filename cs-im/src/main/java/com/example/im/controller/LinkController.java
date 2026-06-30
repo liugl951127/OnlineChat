@@ -39,7 +39,7 @@ public class LinkController {
     private final LinkService linkService;
     private final MessageService messageService;
     private final WsPushService wsPushService;
-    private final OfflineMessageStore offlineStore;
+    private final @org.springframework.beans.factory.annotation.Qualifier("commonOfflineMessageStore") OfflineMessageStore offlineStore;
 
     /**
      * 坐席推送链接

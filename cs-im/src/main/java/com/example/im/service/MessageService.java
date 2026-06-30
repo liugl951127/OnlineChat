@@ -53,7 +53,7 @@ public class MessageService {
     private final ChatSessionRepo sessionRepo;
     private final AuditService auditService;
     private final KafkaMessageProducer kafkaProducer;
-    private final OfflineMessageStore offlineStore;
+    private final @org.springframework.beans.factory.annotation.Qualifier("commonOfflineMessageStore") OfflineMessageStore offlineStore;
     private final WsPushService wsPushService;
 
     @Qualifier("messageRateLimiter")

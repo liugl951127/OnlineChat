@@ -40,7 +40,7 @@ public class CustomerController {
 
     private final SessionService sessionService;
     private final MessageService messageService;
-    private final OfflineMessageStore offlineStore;
+    private final @org.springframework.beans.factory.annotation.Qualifier("commonOfflineMessageStore") OfflineMessageStore offlineStore;
     private final WsPushService wsPushService;
     private final FaqService faqService;
     private final RobotEngine robotEngine;
