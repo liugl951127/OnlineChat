@@ -11,7 +11,9 @@ import java.security.cert.X509Certificate;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -137,29 +139,40 @@ public final class SM2Util {
      */
     public static PrivateKey loadPrivateKey(String pemPath) throws Exception {
         try (PEMParser p = new PEMParser(new FileReader(pemPath))) {
-            Object obj = null;
-            // v2.3.0: 跳过 OpenSSL 的 "SM2 PARAMETERS" (BC PEMParser.readObject 抛 IOException, catch + continue)
-            for (int i = 0; i < 10; i++) {
+            // v2.3.1: 遍历整个 PEM, 收集所有可识别的对象
+            //   支持: PKCS#8 PrivateKeyInfo / OpenSSL PEMKeyPair / KeyPair / 私钥参数 Object
+            List<Object> all = new ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                Object obj;
                 try { obj = p.readObject(); } catch (IOException ioe) { continue; }
                 if (obj == null) break;
-                if (obj instanceof PrivateKeyInfo
-                        || obj instanceof org.bouncycastle.openssl.PEMKeyPair
-                        || obj instanceof KeyPair) break;
+                all.add(obj);
             }
+
             JcaPEMKeyConverter conv = new JcaPEMKeyConverter().setProvider(PROVIDER);
-            if (obj instanceof PrivateKeyInfo) {
-                return conv.getPrivateKey((PrivateKeyInfo) obj);
+
+            // 优先 PEMKeyPair (OpenSSL EC PRIVATE KEY + 可选 SM2 PARAMETERS)
+            for (Object o : all) {
+                if (o instanceof org.bouncycastle.openssl.PEMKeyPair kp) {
+                    return conv.getKeyPair(kp).getPrivate();
+                }
+                if (o instanceof KeyPair kp) {
+                    return kp.getPrivate();
+                }
             }
-            if (obj instanceof KeyPair) {
-                return ((KeyPair) obj).getPrivate();
+
+            // 退到 PKCS#8 PrivateKeyInfo (标准 Java PKCS#8)
+            for (Object o : all) {
+                if (o instanceof PrivateKeyInfo pki) {
+                    return conv.getPrivateKey(pki);
+                }
             }
-            if (obj instanceof org.bouncycastle.openssl.PEMKeyPair) {
-                return conv.getKeyPair((org.bouncycastle.openssl.PEMKeyPair) obj).getPrivate();
+
+            if (all.isEmpty()) {
+                throw new IllegalArgumentException("PEM 文件为空或格式不被识别");
             }
-            if (obj == null) {
-                throw new IllegalArgumentException("PEM 文件中没有可识别的私钥");
-            }
-            throw new IllegalArgumentException("无法解析 PEM: " + obj.getClass().getName());
+            throw new IllegalArgumentException("PEM 文件中没有可识别的私钥 (找到 " + all.size()
+                + " 个段: " + all.get(0).getClass().getSimpleName() + ")");
         }
     }
 
@@ -168,19 +181,32 @@ public final class SM2Util {
      */
     public static PublicKey loadPublicKey(String pemPath) throws Exception {
         try (PEMParser p = new PEMParser(new FileReader(pemPath))) {
-            Object obj = p.readObject();
-            // 跳过 OpenSSL SM2 PARAMETERS
-            while (obj != null && !(obj instanceof SubjectPublicKeyInfo) && !(obj instanceof KeyPair)) {
-                obj = p.readObject();
+            List<Object> all = new ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                Object obj;
+                try { obj = p.readObject(); } catch (IOException ioe) { continue; }
+                if (obj == null) break;
+                all.add(obj);
             }
+
             JcaPEMKeyConverter conv = new JcaPEMKeyConverter().setProvider(PROVIDER);
-            if (obj instanceof SubjectPublicKeyInfo) {
-                return conv.getPublicKey((SubjectPublicKeyInfo) obj);
+
+            // 优先 PEMKeyPair (含私钥 + 公钥)
+            for (Object o : all) {
+                if (o instanceof org.bouncycastle.openssl.PEMKeyPair kp) {
+                    return conv.getKeyPair(kp).getPublic();
+                }
+                if (o instanceof KeyPair kp) {
+                    return kp.getPublic();
+                }
             }
-            if (obj instanceof KeyPair) {
-                return ((KeyPair) obj).getPublic();
+            // 退到 X.509 SubjectPublicKeyInfo (-----BEGIN PUBLIC KEY-----)
+            for (Object o : all) {
+                if (o instanceof SubjectPublicKeyInfo spi) {
+                    return conv.getPublicKey(spi);
+                }
             }
-            throw new IllegalArgumentException("无法解析公钥 PEM: " + obj);
+            throw new IllegalArgumentException("公钥 PEM 无可识别段 (找到 " + all.size() + " 个)");
         }
     }
 

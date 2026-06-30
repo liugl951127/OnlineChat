@@ -34,3 +34,6 @@ cs-frontend/dist/
 # Misc
 *.bak
 *.tmpdump.rdb
+
+# 本地开发配置 (拷贝 .example 改名)
+cs-*/src/main/resources/application-local.yml

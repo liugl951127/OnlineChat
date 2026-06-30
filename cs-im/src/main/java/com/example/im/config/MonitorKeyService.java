@@ -53,7 +53,8 @@ public class MonitorKeyService {
         try {
             // 看是 classpath 资源还是文件系统路径
             // v2.3.0: 1) 读 priv, 2) 优先 .pub.pem, 3) 退到 loadKeyPair
-            String path = privPemPath;
+            // v2.3.1: 路径归一化 (Windows 混用 \\ 与 /)
+            String path = new java.io.File(privPemPath).toPath().toString();
             if (path.startsWith("classpath:")) {
                 String cp = path.substring("classpath:".length());
                 try (var is = new ClassPathResource(cp).getInputStream()) {
@@ -92,10 +93,29 @@ public class MonitorKeyService {
 
             log.info("[MonitorKey] ✓ SM2 私钥加载成功: path={} pub(fp)={}",
                     privPemPath, keyFingerprint);
-        } catch (Exception e) {
-            log.error("[MonitorKey] ✗ SM2 私钥加载失败, monitor 上传将 503: path={}", privPemPath, e);
+        } catch (java.io.FileNotFoundException e) {
+            // v2.3.1: 缺密钥文件 — 这是开发期常态, 不要 ERROR 噪音
+            log.warn("[MonitorKey] ⚠ SM2 私钥未找到: path={}", privPemPath);
+            log.warn("[MonitorKey]   → 本地生成: bash scripts/gen-monitor-keypair.sh");
+            log.warn("[MonitorKey]   → 或关 monitor: CS_MONITOR_ENABLED=false");
             privateKey = null;
             publicKeyBase64 = null;
+            enabled = false;  // 缺密钥自动降级关闭, 不让用户继续配置
+        } catch (IllegalArgumentException e) {
+            // v2.3.1: PEM 内容不对 (不是 SM2 / 不是 EC / 格式坏)
+            log.warn("[MonitorKey] ⚠ PEM 文件无法解析为 SM2 私钥: path={}", privPemPath);
+            log.warn("[MonitorKey]   err: {}", e.getMessage());
+            log.warn("[MonitorKey]   → 检查 PEM 头: 应该是 '-----BEGIN PRIVATE KEY-----' (PKCS#8 SM2)");
+            log.warn("[MonitorKey]   → 看 curve: openssl ec -in {} -text -noout | grep 'ASN1 OID'", privPemPath);
+            log.warn("[MonitorKey]   → 重新生成: bash scripts/gen-monitor-keypair.sh");
+            privateKey = null;
+            publicKeyBase64 = null;
+            enabled = false;
+        } catch (Exception e) {
+            log.warn("[MonitorKey] ✗ SM2 私钥加载失败, monitor 已降级关闭: path={} err={}", privPemPath, e.toString());
+            privateKey = null;
+            publicKeyBase64 = null;
+            enabled = false;
         }
     }
 

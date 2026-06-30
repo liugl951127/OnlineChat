@@ -121,8 +121,8 @@ cs:
     url-prefix: /upload/
     max-size: 20971520
   replay:
-    # v2.2.78: 视频回溯存储
-    storage-dir: ${CS_REPLAY_DIR:/var/data/replay}
+    # v2.2.78: 视频回溯存储 (v2.3.1: 默认相对路径, 不需 root)
+    storage-dir: ${CS_REPLAY_DIR:${user.home}/cs-data/replay}
     public-base: ${CS_REPLAY_BASE:http://127.0.0.1:9001/im/replay/video}
     framerate: 2
 
@@ -253,9 +253,9 @@ local:
 # 生产私钥放 KMS / Vault, 当前支持本地 PEM 文件
 cs:
   monitor:
-    enabled: ${CS_MONITOR_ENABLED:true}
-    sm2-priv-pem-path: ${CS_MONITOR_SM2_PRIV:/root/.cs/cs-monitor.priv.pem}
-    storage-dir: ${CS_MONITOR_STORAGE_DIR:/var/data/monitor}
+    enabled: ${CS_MONITOR_ENABLED:false}                                       # v2.3.1: 默认关闭 (开发期), 生产开
+    sm2-priv-pem-path: ${CS_MONITOR_SM2_PRIV:${user.home}/.cs/cs-monitor.priv.pem}
+    storage-dir: ${CS_MONITOR_STORAGE_DIR:${user.home}/cs-data/monitor}        # v2.3.1: 用户目录优先
     segment-duration-ms: 5000        # SDK 默认每 5s 切一片
     retention-days: 180              # 等保 2.0 - PBOC 6 个月留存
     encrypt-at-rest: false           # 解密后落本地, 默认不安全, 生产建议 LUKS / KMS 包裹磁盘
