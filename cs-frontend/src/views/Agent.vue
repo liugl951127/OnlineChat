@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { link as linkApi, im as imApi } from '@/api'
+import { useErrorStore } from '@/store/error'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { im, agent as agentApi, robot } from '@/api'
 import { useUserStore } from '@/store/user'
@@ -11,6 +12,7 @@ import VoiceRecorder from '@/components/VoiceRecorder.vue'
 import { formatTime, safeText, debounce } from '@/utils'
 
 const user = useUserStore()
+const errorStore = useErrorStore()
 
 // ============= 会话列表 =============
 const sessions = ref([])

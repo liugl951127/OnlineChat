@@ -13,6 +13,7 @@ import ScreenShare from '@/components/ScreenShare.vue'
 import VoiceRecorder from '@/components/VoiceRecorder.vue'
 
 const user = useUserStore()
+const errorStore = useErrorStore()
 
 // ============ 消息流（WebSocket 实时 + 历史） ============
 const messages = ref([])
@@ -68,13 +69,14 @@ const quickReplies = [
 
 // ============ 生命周期 ============
 onMounted(async () => {
-  await loadSession()
-  await connectWS()
-  await loadHistory()
-  await loadOffline()
+  // v2.3.1: 每个 API 独立 try-catch, 一个失败不影响其他, 用 banner 提示
+  await safeCall('加载会话', () => loadSession())
+  await safeCall('建立聊天连接', () => connectWS(), 'warning')
+  await safeCall('加载历史消息', () => loadHistory())
+  await safeCall('拉取离线消息', () => loadOffline())
   // v2.2.78: 启动会话回溯 Recorder (定时截图)
   if (sessionId.value) {
-    recorder.start()
+    try { recorder.start() } catch (e) { console.warn('[Recorder]', e) }
   }
 })
 
@@ -192,6 +194,21 @@ function disconnectWS() {
 }
 
 // ============ 历史/会话/离线消息 ============
+// v2.3.1: 安全调用 — 失败时推 banner, 不中断后续调用
+async function safeCall(title, fn, type = 'error') {
+  try {
+    await fn()
+  } catch (e) {
+    if (e?.message === '未登录' || e?.response?.status === 401) return  // handle401 已处理
+    errorStore.push({
+      type,
+      title,
+      message: e?.response?.data?.msg || e?.message || '操作失败',
+      source: 'customer-mount'
+    })
+  }
+}
+
 async function loadSession() {
   // v2.3.0: F2 先恢复 localStorage (防刷新断线)
   const cached = loadLocalSession()

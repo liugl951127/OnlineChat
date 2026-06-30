@@ -4,9 +4,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
 import { admin } from '@/api'
 import { useUserStore } from '@/store/user'
+import { useErrorStore } from '@/store/error'
 import { maskMobile, formatDate, formatTime } from '@/utils'
 
 const user = useUserStore()
+const errorStore = useErrorStore()
 const activeTab = ref('dashboard')
 
 // ============ Dashboard ============
